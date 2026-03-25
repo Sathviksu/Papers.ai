@@ -9,8 +9,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['Satoshi', 'sans-serif'],
+        headline: ['"Cabinet Grotesk"', 'sans-serif'],
         code: ['"Source Code Pro"', 'monospace'],
       },
       colors: {
@@ -64,6 +64,29 @@ module.exports = {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        aurora: {
+          bg: 'var(--color-page-bg)',
+          'surface-1': 'var(--color-surface-1)',
+          'surface-2': 'var(--color-surface-2)',
+          'surface-3': 'var(--color-surface-3)',
+          blue: 'var(--color-accent-blue)',
+          violet: 'var(--color-accent-violet)',
+          cyan: 'var(--color-accent-cyan)',
+          rose: 'var(--color-accent-rose)',
+          text: {
+            high: 'var(--color-text-high)',
+            mid: 'var(--color-text-mid)',
+            low: 'var(--color-text-low)',
+          },
+          border: 'var(--color-border)',
+        }
+      },
+      boxShadow: {
+        'aurora-card': 'var(--shadow-card)',
+        'aurora-card-hover': 'var(--shadow-card-hover)',
+      },
+      backgroundImage: {
+        'aurora-glow': 'var(--aurora-glow)',
       },
       borderRadius: {
         lg: 'var(--radius)',

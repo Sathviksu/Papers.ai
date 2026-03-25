@@ -1,6 +1,29 @@
+@import './design-tokens.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.glass-nav {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+}
+
+.aurora-bg {
+  background-color: var(--color-page-bg);
+}
+
+.animated-border-dashed {
+  background-image: linear-gradient(90deg, #A5B4FC 50%, transparent 50%), linear-gradient(90deg, #A5B4FC 50%, transparent 50%), linear-gradient(0deg, #A5B4FC 50%, transparent 50%), linear-gradient(0deg, #A5B4FC 50%, transparent 50%);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-size: 16px 2px, 16px 2px, 2px 16px, 2px 16px;
+  background-position: 0% 0%, 100% 100%, 0% 100%, 100% 0px;
+  border-radius: 24px;
+  animation: border-dance 1s infinite linear;
+}
+@keyframes border-dance {
+  100% { background-position: 16px 0%, calc(100% - 16px) 100%, 0% calc(100% - 16px), 100% 16px; }
+}
 
 @layer base {
   :root {
