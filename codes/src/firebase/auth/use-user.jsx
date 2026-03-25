@@ -1,0 +1,24 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '../provider';
+
+export function useUser() {
+  const auth = useAuth();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // onAuthStateChanged is asynchronous, so we need to handle the initial state
+    setLoading(true);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [auth]);
+
+  return { user, loading };
+}

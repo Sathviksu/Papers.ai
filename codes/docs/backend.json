@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the ResearchMind AI application. Stores user profile information, excluding sensitive authentication data.",
+      "description": "Represents a user of the Papers.ai application. Stores user profile information, excluding sensitive authentication data.",
       "properties": {
         "id": {
           "type": "string",

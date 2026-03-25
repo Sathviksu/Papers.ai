@@ -1,4 +1,4 @@
-# **App Name**: ResearchMind AI
+# **App Name**: Papers.ai
 
 ## Core Features:
 

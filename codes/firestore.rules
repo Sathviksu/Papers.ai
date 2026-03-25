@@ -1,5 +1,5 @@
 /**
- * This ruleset enforces a strict, hierarchical user-ownership model for the ResearchMind AI application.
+ * This ruleset enforces a strict, hierarchical user-ownership model for the Papers.ai application.
  *
  * Core Philosophy:
  * All data is considered private and belongs to a specific user. Access is granted only to the authenticated
