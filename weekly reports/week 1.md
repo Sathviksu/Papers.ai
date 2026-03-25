@@ -1,101 +1,131 @@
-WEEKLY REPORT - WEEK 1
-Project: Paper.ai
-------------------------------------------------------------
+# WEEKLY REPORT – WEEK 1
 
-WEEK DETAILS
-------------------------------------------------------------
-Week Number : 1
-Start Date  : 14 March 2026
-End Date    : 20 March 2026
+## Project: Papers.ai
 
-------------------------------------------------------------
+---
 
-TEAM MEMBERS
-------------------------------------------------------------
-Name        | SRN     | Role
-------------------------------------------------------------
-Member 1    | SRN001  | Project Lead
-Member 2    | SRN002  | Customer Research
-Member 3    | SRN003  | Development lead
-Member 4    | SRN004  | Documentation
-Member 5    | SRN005  | UI/UX Designer
-------------------------------------------------------------
+## WEEK INFORMATION
 
-WEEKLY OBJECTIVES
-------------------------------------------------------------
-[1] Finalize Problem Statement       - Completed
-[2] Identify Target Users            - Completed
-[3] Conduct Customer Interviews      - Completed
-[4] Setup GitHub Repository          - Completed
-[5] Requirement Gathering            - completed
+| Parameter  | Details                                                   |
+| ---------- | --------------------------------------------------------- |
+| Week       | 1                                                         |
+| Duration   | 14 March 2026 – 20 March 2026                             |
+| Focus Area | Problem Identification, GitHub Setup and Initial Research |
 
-------------------------------------------------------------
+---
 
-WORK DISTRIBUTION
-------------------------------------------------------------
-Member 1 (Project Lead):
-- Defined project scope and objectives
-- Created GitHub repository and folder structure
+## TEAM STRUCTURE
 
-Member 2 (Customer Research):
-- Conducted 5 customer interviews
-- Collected user pain points and feedback
-- Captured interview photos and responses
+| Member                | SRN      | Responsibility        |
+| --------------------- | -------- | --------------------- |
+| Murali Subramanya B C | R23EF151 | Team Lead             |
+| Sathvik S U           | R23EF241 | Development Lead      |
+| Sharath kumar B       | R23EF244 | Customer Contact Lead |
+| Kartik Sanjeev Naik   | R23EF109 | Documentation Lead    |
+| Pavan Reddy NR        | R23EF275 | Developer             |
 
-Member 3 (Development):
-- Researched AI/NLP tools for summarization
-- Set up initial development environment
-- Planned Proof of Concept (PoC)
+---
 
-Member 4 (Documentation):
-- Drafted Problem Statement Document
-- Started Product Requirement Specification (PRS)
-- Organized interview data
+## WEEKLY TARGETS AND STATUS
 
-------------------------------------------------------------
+| Task                           | Status    |
+| ------------------------------ | --------- |
+| Problem Statement Finalization | Completed |
+| Create GitHub Repository       | Completed |
+| Initial Market Research        | Completed |
+| Competitor Analysis            | Completed |
+| Identify Target Users          | Completed |
+| Prepare Interview Questions    | Completed |
+| Initial Project Setup          | Completed |
 
-CUSTOMER INSIGHTS
-------------------------------------------------------------
-- Research papers are difficult to understand
-- Technical jargon is a major challenge
-- Reading papers is time-consuming
-- Users prefer summarized content
-- Visual explanations improve understanding
+---
 
-------------------------------------------------------------
+## ROLE-WISE CONTRIBUTIONS
 
-CHALLENGES FACED
-------------------------------------------------------------
-- Difficulty scheduling interviews
-- Some incomplete responses from users
-- Initial confusion in requirement definition
+### Team Lead
 
-------------------------------------------------------------
+* Finalized project idea and objectives
+* Guided team in defining project scope
+* Coordinated planning discussions
+* Reviewed initial project structure
 
-PLAN FOR NEXT WEEK
-------------------------------------------------------------
-- Complete Product Requirement Specification
-- Design system architecture
-- Start prototype development
-- Create user personas and ICP
-- Upload documents to GitHub
+### Development Lead
 
-------------------------------------------------------------
+* Created GitHub repository structure
+* Selected initial tech stack options
+* Explored AI summarization approaches
+* Defined basic system components
 
-GITHUB PROGRESS
-------------------------------------------------------------
-- Repository Created       : Yes
-- Documents Folder Created : Yes
-- Weekly Reports Folder    : Yes
-- Files Uploaded           : Yes
+### Customer Contact Lead
 
-------------------------------------------------------------
+* Identified target users such as students and researchers
+* Prepared structured interview questions
+* Initiated communication with potential users
 
-WEEKLY SUMMARY
-------------------------------------------------------------
-This week focused on understanding the problem and validating
-user needs. The team successfully conducted interviews,
-identified key issues, and initiated documentation and
-development work.
+### Documentation Lead
 
-------------------------------------------------------------
+* Documented problem statement
+* Maintained project notes and research records
+* Structured folders and files in GitHub
+
+### Developer
+
+* Initialized project files
+* Tested basic development setup
+* Assisted in technical research and setup
+
+---
+
+## INITIAL PROJECT ACTIVITIES
+
+* Created GitHub repository for Papers.ai
+* Added README file with project overview
+* Defined project folder structure
+* Identified core features such as paper summarization and simplified explanations
+* Began planning technical workflow
+
+---
+
+## KEY CUSTOMER INSIGHTS
+
+* Students spend significant time reading research papers
+* Difficulty understanding complex academic terminology
+* Need faster understanding of research content
+* Interest in productivity improvement tools
+
+---
+
+## CHALLENGES
+
+* Selecting appropriate technical approach
+* Understanding exact user requirements
+* Structuring project workflow
+* Coordinating repository structure
+
+---
+
+## PLAN FOR NEXT WEEK
+
+* Prepare Product Requirement Specification (PRS)
+* Conduct user interviews
+* Create user personas and ICP
+* Start system architecture design
+* Organize collected research data
+
+---
+
+## GITHUB PROGRESS
+
+| Component                 | Status    |
+| ------------------------- | --------- |
+| GitHub Repository Created | Completed |
+| README File Added         | Completed |
+| Project Folder Structure  | Completed |
+| Research Notes Uploaded   | Completed |
+| Weekly Report             | Uploaded  |
+
+---
+
+## WEEKLY SUMMARY
+
+Week 1 focused on establishing the foundation of the Papers.ai project. The team finalized the problem statement, created the GitHub repository, and initiated the project structure. Initial research and interview preparation helped define the direction for requirement gathering and system design in the following weeks.

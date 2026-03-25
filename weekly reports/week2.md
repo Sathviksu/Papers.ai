@@ -1,4 +1,4 @@
-# WEEKLY REPORT – WEEK 1
+# WEEKLY REPORT – WEEK 2
 
 ## Project: Papers.ai
 
@@ -6,11 +6,11 @@
 
 ## WEEK INFORMATION
 
-| Parameter  | Details                                                   |
-| ---------- | --------------------------------------------------------- |
-| Week       | 1                                                         |
-| Duration   | 14 March 2026 – 20 March 2026                             |
-| Focus Area | Problem Identification, GitHub Setup and Initial Research |
+| Parameter  | Details                                            |
+| ---------- | -------------------------------------------------- |
+| Week       | 2                                                  |
+| Duration   | 21 March 2026 – 27 March 2026                      |
+| Focus Area | Requirements Finalization and Prototype Initiation |
 
 ---
 
@@ -28,15 +28,13 @@
 
 ## WEEKLY TARGETS AND STATUS
 
-| Task                           | Status    |
-| ------------------------------ | --------- |
-| Problem Statement Finalization | Completed |
-| Create GitHub Repository       | Completed |
-| Initial Market Research        | Completed |
-| Competitor Analysis            | Completed |
-| Identify Target Users          | Completed |
-| Prepare Interview Questions    | Completed |
-| Initial Project Setup          | Completed |
+| Task                              | Status      |
+| --------------------------------- | ----------- |
+| Product Requirement Specification | Completed   |
+| User Personas and ICP             | Completed   |
+| System Architecture Design        | In Progress |
+| Prototype Development             | In Progress |
+| Interview Data Organization       | Completed   |
 
 ---
 
@@ -44,88 +42,74 @@
 
 ### Team Lead
 
-* Finalized project idea and objectives
-* Guided team in defining project scope
-* Coordinated planning discussions
-* Reviewed initial project structure
+* Supervised overall project execution
+* Finalized Product Requirement Specification
+* Defined priority features for MVP
 
 ### Development Lead
 
-* Created GitHub repository structure
-* Selected initial tech stack options
-* Explored AI summarization approaches
-* Defined basic system components
+* Designed initial system architecture
+* Evaluated NLP and summarization APIs
+* Finalized core technical stack decisions
 
 ### Customer Contact Lead
 
-* Identified target users such as students and researchers
-* Prepared structured interview questions
-* Initiated communication with potential users
+* Conducted structured interviews
+* Created Ideal Customer Profile (ICP)
+* Identified major user expectations
 
 ### Documentation Lead
 
-* Documented problem statement
-* Maintained project notes and research records
-* Structured folders and files in GitHub
+* Prepared structured PRS document
+* Organized research findings
+* Maintained GitHub documentation
 
 ### Developer
 
-* Initialized project files
-* Tested basic development setup
-* Assisted in technical research and setup
-
----
-
-## INITIAL PROJECT ACTIVITIES
-
-* Created GitHub repository for Papers.ai
-* Added README file with project overview
-* Defined project folder structure
-* Identified core features such as paper summarization and simplified explanations
-* Began planning technical workflow
+* Initiated prototype codebase
+* Assisted with summarization feature implementation
+* Supported development tasks
 
 ---
 
 ## KEY CUSTOMER INSIGHTS
 
-* Students spend significant time reading research papers
-* Difficulty understanding complex academic terminology
-* Need faster understanding of research content
-* Interest in productivity improvement tools
+* Users require quick summaries of research papers
+* Users prefer simplified explanations of complex concepts
+* Visual representation of information is preferred
+* Tools that save academic time are highly demanded
 
 ---
 
 ## CHALLENGES
 
-* Selecting appropriate technical approach
-* Understanding exact user requirements
-* Structuring project workflow
-* Coordinating repository structure
+* Selecting appropriate AI tools for implementation
+* Converting feature ideas into feasible architecture
+* Balancing research and development workload
 
 ---
 
 ## PLAN FOR NEXT WEEK
 
-* Prepare Product Requirement Specification (PRS)
-* Conduct user interviews
-* Create user personas and ICP
-* Start system architecture design
-* Organize collected research data
+* Complete system architecture design
+* Build functional MVP prototype
+* Integrate summarization functionality
+* Prepare initial presentation draft
+* Continue updating GitHub repository
 
 ---
 
 ## GITHUB PROGRESS
 
-| Component                 | Status    |
-| ------------------------- | --------- |
-| GitHub Repository Created | Completed |
-| README File Added         | Completed |
-| Project Folder Structure  | Completed |
-| Research Notes Uploaded   | Completed |
-| Weekly Report             | Uploaded  |
+| Component      | Status    |
+| -------------- | --------- |
+| PRS Document   | Completed |
+| User Personas  | Completed |
+| Interview Data | Organized |
+| Weekly Report  | Uploaded  |
 
 ---
 
 ## WEEKLY SUMMARY
 
-Week 1 focused on establishing the foundation of the Papers.ai project. The team finalized the problem statement, created the GitHub repository, and initiated the project structure. Initial research and interview preparation helped define the direction for requirement gathering and system design in the following weeks.
+During Week 2, the team translated user research insights into structured product requirements. The Product Requirement Specification was completed, user personas were finalized, and system architecture and prototype development were initiated. Progress is aligned with the planned development roadmap.
