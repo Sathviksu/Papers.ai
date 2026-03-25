@@ -1,0 +1,195 @@
+/**
+ * This ruleset enforces a strict, hierarchical user-ownership model for the ResearchMind AI application.
+ *
+ * Core Philosophy:
+ * All data is considered private and belongs to a specific user. Access is granted only to the authenticated
+ * owner of the data. There is no public or shared data in this model.
+ *
+ * Data Structure:
+ * The entire database is structured hierarchically under the `/users/{userId}` path. All user-generated
+ * content, such as uploaded `papers` and their AI-generated `summaries`, `insights`, `knowledgeGraphs`,
+ * and `embeddings`, are located in subcollections within their owner's user path. This structure inherently
+ * links data to its owner, simplifying security.
+ *
+ * Key Security Decisions:
+ * - User Isolation: Users can only read or write data located within their own data tree (i.e., `/users/{request.auth.uid}/...`).
+ * - No User Enumeration: Listing documents in the top-level `/users` collection is explicitly disallowed to protect user privacy.
+ * - Authorization Independence: For performance and security, every document, including those in deep subcollections
+ *   (like `summaries` or `insights`), must contain a denormalized `userId` field. This allows rules to authorize
+ *   requests by checking the document's data directly, avoiding slow and costly `get()` calls to parent documents.
+ * - Relational Integrity: On document creation, rules validate that the denormalized `userId` (and `paperId` for
+ *   subcollections) matches the document's path. These IDs are then enforced as immutable on updates to prevent
+ *   data from being moved between users or parent documents.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------------------------------------
+    // Helper Functions
+    // --------------------------------------------------------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks for ownership on an existing document. Used for update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * On create, validates that the new user document's internal 'id' matches its path.
+     */
+    function hasCorrectUserDataOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * On update, ensures critical user identity fields are not changed.
+     */
+    function isUserDataImmutable() {
+      return request.resource.data.id == resource.data.id
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    /**
+     * On create, validates the paper's 'userId' field matches the path.
+     */
+    function hasCorrectPaperDataOnCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * On update, ensures the paper's ownership link ('userId') is immutable.
+     */
+    function isPaperDataImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * On create, validates denormalized 'userId' and 'paperId' for any paper subcollection document.
+     * This is critical for Authorization Independence, avoiding cross-document reads.
+     */
+    function hasCorrectSubcollectionDataOnCreate(userId, paperId) {
+      return request.resource.data.userId == userId && request.resource.data.paperId == paperId;
+    }
+
+    /**
+     * On update, ensures denormalized ownership links ('userId', 'paperId') are immutable.
+     */
+    function isSubcollectionDataImmutable() {
+      return request.resource.data.userId == resource.data.userId
+          && request.resource.data.paperId == resource.data.paperId;
+    }
+
+
+    // --------------------------------------------------------------------------------
+    // Collection Rules
+    // --------------------------------------------------------------------------------
+
+    /**
+     * @description Controls access to a user's own profile document.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user can create their own user document. auth.uid: "user_abc", path: /users/user_abc
+     * @deny (list) A user cannot list all other users in the system.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && hasCorrectUserDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isUserDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to a user's collection of uploaded papers.
+     * @path /users/{userId}/papers/{paperId}
+     * @allow (create) An authenticated user can create a new paper document in their own collection. auth.uid: "user_abc", path: /users/user_abc/papers/paper_123
+     * @deny (get) An authenticated user cannot read a paper belonging to another user. auth.uid: "user_abc", path: /users/user_xyz/papers/paper_456
+     * @principle Enforces document ownership for all operations based on the path.
+     */
+    match /users/{userId}/papers/{paperId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasCorrectPaperDataOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isPaperDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to AI-generated summaries for a specific paper.
+     * @path /users/{userId}/papers/{paperId}/summaries/{summaryId}
+     * @allow (list) A user can list all summaries for a paper they own. auth.uid: "user_abc", path: /users/user_abc/papers/paper_123/summaries
+     * @deny (create) A user cannot create a summary under another user's paper. auth.uid: "user_xyz", path: /users/user_abc/papers/paper_123/summaries/summary_789
+     * @principle Secures a subcollection by checking ownership of the parent path. Relies on denormalized `userId` for writes.
+     */
+    match /users/{userId}/papers/{paperId}/summaries/{summaryId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasCorrectSubcollectionDataOnCreate(userId, paperId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to AI-extracted insights for a specific paper.
+     * @path /users/{userId}/papers/{paperId}/insights/{insightId}
+     * @allow (get) A user can get a specific insight for a paper they own. auth.uid: "user_abc", path: /users/user_abc/papers/paper_123/insights/insight_456
+     * @deny (update) A user cannot update an insight belonging to another user. auth.uid: "user_xyz", path: /users/user_abc/papers/paper_123/insights/insight_456
+     * @principle Secures a subcollection by checking ownership of the parent path. Relies on denormalized `userId` for writes.
+     */
+    match /users/{userId}/papers/{paperId}/insights/{insightId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasCorrectSubcollectionDataOnCreate(userId, paperId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to AI-generated knowledge graphs for a specific paper.
+     * @path /users/{userId}/papers/{paperId}/knowledgeGraphs/{knowledgeGraphId}
+     * @allow (delete) A user can delete a knowledge graph for a paper they own. auth.uid: "user_abc", path: /users/user_abc/papers/paper_123/knowledgeGraphs/kg_789
+     * @deny (get) A user cannot read a knowledge graph belonging to another user. auth.uid: "user_xyz", path: /users/user_abc/papers/paper_123/knowledgeGraphs/kg_789
+     * @principle Secures a subcollection by checking ownership of the parent path. Relies on denormalized `userId` for writes.
+     */
+    match /users/{userId}/papers/{paperId}/knowledgeGraphs/{knowledgeGraphId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasCorrectSubcollectionDataOnCreate(userId, paperId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to vector embeddings generated for RAG.
+     * @path /users/{userId}/papers/{paperId}/embeddings/{embeddingId}
+     * @allow (list) A user can list all embeddings for their own paper. auth.uid: "user_abc", path: /users/user_abc/papers/paper_123/embeddings
+     * @deny (create) A user cannot create an embedding document under another user's paper. auth.uid: "user_xyz", path: /users/user_abc/papers/paper_123/embeddings/emb_abc
+     * @principle Secures a subcollection by checking ownership of the parent path. Relies on denormalized `userId` for writes.
+     */
+    match /users/{userId}/papers/{paperId}/embeddings/{embeddingId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasCorrectSubcollectionDataOnCreate(userId, paperId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+  }
+}

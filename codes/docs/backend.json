@@ -1,0 +1,490 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the ResearchMind AI application. Stores user profile information, excluding sensitive authentication data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for identification.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name or display name of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Paper": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Paper",
+      "type": "object",
+      "description": "Stores metadata, extracted content, and processing status for an uploaded research paper.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Paper entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who uploaded this paper. (Relationship: User 1:N Paper)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the research paper."
+        },
+        "authors": {
+          "type": "array",
+          "description": "A list of authors of the research paper.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "publicationDate": {
+          "type": "string",
+          "description": "The publication date of the paper (e.g., year, or full date if available)."
+        },
+        "abstract": {
+          "type": "string",
+          "description": "The abstract content extracted from the paper."
+        },
+        "fullText": {
+          "type": "string",
+          "description": "The full text content extracted from the PDF of the paper."
+        },
+        "filePath": {
+          "type": "string",
+          "description": "The URI or path where the original PDF file is stored (e.g., Firebase Storage URL).",
+          "format": "uri"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The original name of the uploaded PDF file."
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "The size of the uploaded file in bytes."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Timestamp when the paper was uploaded.",
+          "format": "date-time"
+        },
+        "processingStatus": {
+          "type": "string",
+          "description": "The current processing status of the paper (e.g., 'uploaded', 'extracting_text', 'summarizing', 'completed', 'failed')."
+        },
+        "detectedSections": {
+          "type": "array",
+          "description": "An array of objects representing automatically detected sections and their content.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "doi": {
+          "type": "string",
+          "description": "The Digital Object Identifier (DOI) for the paper, if available."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "fullText",
+        "filePath",
+        "fileName",
+        "fileSize",
+        "uploadDate",
+        "processingStatus"
+      ]
+    },
+    "Summary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Summary",
+      "type": "object",
+      "description": "Stores various AI-generated summaries and key points for a specific research paper.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Summary entity."
+        },
+        "paperId": {
+          "type": "string",
+          "description": "Reference to the Paper this summary belongs to. (Relationship: Paper 1:N Summary)"
+        },
+        "tldrSummary": {
+          "type": "string",
+          "description": "A very short, 'Too Long; Didn't Read' summary of the paper."
+        },
+        "sectionSummaries": {
+          "type": "array",
+          "description": "An array of objects, each containing a section title and its AI-generated summary.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keyContributions": {
+          "type": "array",
+          "description": "A list of key contributions identified by the AI.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "description": "A list of limitations of the research identified by the AI.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "futureResearchDirections": {
+          "type": "array",
+          "description": "A list of future research directions suggested by the AI based on the paper.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "Timestamp when this summary was generated.",
+          "format": "date-time"
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "The name or identifier of the AI model used to generate this summary."
+        }
+      },
+      "required": [
+        "id",
+        "paperId",
+        "tldrSummary",
+        "generatedAt",
+        "modelUsed"
+      ]
+    },
+    "Insight": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Insight",
+      "type": "object",
+      "description": "Stores structured research information extracted by AI from a specific paper.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Insight entity."
+        },
+        "paperId": {
+          "type": "string",
+          "description": "Reference to the Paper this insight was extracted from. (Relationship: Paper 1:N Insight)"
+        },
+        "researchProblem": {
+          "type": "string",
+          "description": "The core research problem addressed in the paper."
+        },
+        "methodology": {
+          "type": "string",
+          "description": "A description of the methodology employed in the research."
+        },
+        "datasetsUsed": {
+          "type": "array",
+          "description": "A list of datasets utilized in the research.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "algorithmsModels": {
+          "type": "array",
+          "description": "A list of algorithms or models developed/used in the research.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evaluationMetrics": {
+          "type": "array",
+          "description": "A list of metrics used to evaluate the research outcomes.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keyResults": {
+          "type": "array",
+          "description": "A list of the primary results or findings of the research.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "extractedAt": {
+          "type": "string",
+          "description": "Timestamp when these insights were extracted.",
+          "format": "date-time"
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "The name or identifier of the AI model used for insight extraction."
+        }
+      },
+      "required": [
+        "id",
+        "paperId",
+        "researchProblem",
+        "methodology",
+        "extractedAt",
+        "modelUsed"
+      ]
+    },
+    "KnowledgeGraph": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "KnowledgeGraph",
+      "type": "object",
+      "description": "Stores the nodes and edges representing the knowledge graph generated from a research paper.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the KnowledgeGraph entity."
+        },
+        "paperId": {
+          "type": "string",
+          "description": "Reference to the Paper from which this knowledge graph was generated. (Relationship: Paper 1:N KnowledgeGraph)"
+        },
+        "nodes": {
+          "type": "array",
+          "description": "An array of graph nodes, each representing a concept, model, dataset, or method.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "description": "An array of graph edges, representing relationships between nodes.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "Timestamp when this knowledge graph was generated.",
+          "format": "date-time"
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "The name or identifier of the AI model used for knowledge graph generation."
+        }
+      },
+      "required": [
+        "id",
+        "paperId",
+        "nodes",
+        "edges",
+        "generatedAt",
+        "modelUsed"
+      ]
+    },
+    "Embedding": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Embedding",
+      "type": "object",
+      "description": "Stores text chunks and their corresponding vector embeddings for Retrieval Augmented Generation (RAG) purposes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Embedding entity."
+        },
+        "paperId": {
+          "type": "string",
+          "description": "Reference to the Paper the text chunk belongs to. (Relationship: Paper 1:N Embedding)"
+        },
+        "chunkText": {
+          "type": "string",
+          "description": "The segment of text (chunk) from the paper that was embedded."
+        },
+        "chunkIndex": {
+          "type": "number",
+          "description": "The sequential index of the text chunk within the paper."
+        },
+        "embeddingVector": {
+          "type": "array",
+          "description": "The dense vector representation (embedding) of the chunkText.",
+          "items": {
+            "type": "number"
+          }
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "The name or identifier of the embedding model used to generate this vector."
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "Timestamp when this embedding was generated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "paperId",
+        "chunkText",
+        "chunkIndex",
+        "embeddingVector",
+        "modelUsed",
+        "generatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "google.com",
+      "password"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores individual user profiles. The document ID for each user matches their Firebase Authentication UID. Access is restricted to the user themselves."
+        }
+      },
+      {
+        "path": "/users/{userId}/papers/{paperId}",
+        "definition": {
+          "entityName": "Paper",
+          "schema": {
+            "$ref": "#/backend/entities/Paper"
+          },
+          "description": "Stores metadata and extracted content for a user's uploaded research papers. The 'userId' field in the document matches the path parameter, ensuring direct ownership. This path supports secure 'list' operations for a user's papers.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this paper."
+            },
+            {
+              "name": "paperId",
+              "description": "The unique identifier for the research paper."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/papers/{paperId}/summaries/{summaryId}",
+        "definition": {
+          "entityName": "Summary",
+          "schema": {
+            "$ref": "#/backend/entities/Summary"
+          },
+          "description": "Stores AI-generated summaries for a specific research paper. Includes denormalized 'userId' (copied from the parent Paper) for authorization independence, allowing direct `resource.data.userId` checks in security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the parent paper."
+            },
+            {
+              "name": "paperId",
+              "description": "The unique identifier of the parent research paper."
+            },
+            {
+              "name": "summaryId",
+              "description": "The unique identifier for the summary document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/papers/{paperId}/insights/{insightId}",
+        "definition": {
+          "entityName": "Insight",
+          "schema": {
+            "$ref": "#/backend/entities/Insight"
+          },
+          "description": "Stores structured research insights extracted by AI from a paper. Includes denormalized 'userId' (copied from the parent Paper) for authorization independence, allowing direct `resource.data.userId` checks in security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the parent paper."
+            },
+            {
+              "name": "paperId",
+              "description": "The unique identifier of the parent research paper."
+            },
+            {
+              "name": "insightId",
+              "description": "The unique identifier for the insight document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/papers/{paperId}/knowledgeGraphs/{knowledgeGraphId}",
+        "definition": {
+          "entityName": "KnowledgeGraph",
+          "schema": {
+            "$ref": "#/backend/entities/KnowledgeGraph"
+          },
+          "description": "Stores the nodes and edges representing the knowledge graph generated for a research paper. Includes denormalized 'userId' (copied from the parent Paper) for authorization independence, allowing direct `resource.data.userId` checks in security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the parent paper."
+            },
+            {
+              "name": "paperId",
+              "description": "The unique identifier of the parent research paper."
+            },
+            {
+              "name": "knowledgeGraphId",
+              "description": "The unique identifier for the knowledge graph document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/papers/{paperId}/embeddings/{embeddingId}",
+        "definition": {
+          "entityName": "Embedding",
+          "schema": {
+            "$ref": "#/backend/entities/Embedding"
+          },
+          "description": "Stores text chunks and their vector embeddings for Retrieval Augmented Generation (RAG). Includes denormalized 'userId' (copied from the parent Paper) for authorization independence, allowing direct `resource.data.userId` checks in security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the parent paper."
+            },
+            {
+              "name": "paperId",
+              "description": "The unique identifier of the parent research paper."
+            },
+            {
+              "name": "embeddingId",
+              "description": "The unique identifier for the embedding document."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore data structure follows a strict hierarchical, path-based ownership model centered around the `User` entity. All user-specific data, including `Papers` and their associated sub-entities like `Summaries`, `Insights`, `KnowledgeGraphs`, and `Embeddings`, are nested under a user's unique ID (`/users/{userId}/...`). This approach inherently ties data ownership to the authenticated user, making security rules highly intuitive and simple to implement. \n\n**Authorization Independence (CRITICAL):** This structure achieves Authorization Independence by explicitly denormalizing the `userId` into every document within the subcollections (`summaries`, `insights`, `knowledgeGraphs`, `embeddings`). Although the provided schemas for these sub-entities do not explicitly list `userId`, the core design principles mandate that if a subcollection's access depends on the parent's attributes (like the `Paper`'s `userId`), those attributes MUST be copied into every document in the subcollection. Therefore, each `Summary`, `Insight`, `KnowledgeGraph`, and `Embedding` document will contain a `userId` field that matches the `userId` of its parent `Paper` and the owning `User`. This allows security rules to evaluate access by directly comparing `request.auth.uid` with `resource.data.userId` without performing expensive and non-atomic `get()` operations on parent documents. This design ensures that rules remain fast, robust, and easy to debug, as authorization logic is contained within the document itself.\n\n**QAPs (Secure List Operations):** The structural segregation of data under `/users/{userId}/` directly supports secure `list` operations (Query-as-Permission). By organizing data this way, a user can only query and list documents within their own `/users/{request.auth.uid}/...` path. Firestore security rules can simply enforce `allow list: if request.auth.uid == userId;` (where `userId` is the wildcard in the path). The database automatically filters results based on this path, guaranteeing that users can only retrieve lists of documents they own, without requiring complex, inefficient, or error-prone application-level filtering. This maintains data privacy and integrity efficiently."
+  }
+}

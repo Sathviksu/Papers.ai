@@ -1,0 +1,16 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user-avatar",
+      "description": "Placeholder for a user avatar",
+      "imageUrl": "https://picsum.photos/seed/avatar/40/40",
+      "imageHint": "person face"
+    },
+    {
+      "id": "login-background",
+      "description": "Person in a desert landscape",
+      "imageUrl": "https://images.pexels.com/photos/6306917/pexels-photo-6306917.jpeg",
+      "imageHint": "desert fashion"
+    }
+  ]
+}
