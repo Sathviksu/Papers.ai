@@ -1,5 +1,6 @@
 const nextConfig = {
   /* config options here */
+  /* config options here */
   eslint: {
     ignoreDuringBuilds: true,
   },
