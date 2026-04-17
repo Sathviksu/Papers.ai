@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { BrainCircuit, Search, ScrollText, Network, CheckCircle2 } from 'lucide-react';
 import { InteractiveGridBackground } from '@/components/the-infinite-grid';
+import { PricingContainer } from '@/components/ui/pricing-container';
 
 export default function LandingPage() {
   return (
@@ -118,6 +119,64 @@ export default function LandingPage() {
               <CheckCircle2 className="h-4 w-4 text-green-500" /> Interactive Chat
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-10 bg-white border-t border-slate-100">
+        <div className="max-w-6xl mx-auto px-6">
+          <PricingContainer
+            title="Simple, Transparent Pricing"
+            plans={[
+              {
+                name: "Free",
+                monthlyPrice: 0,
+                yearlyPrice: 0,
+                accent: "bg-slate-700",
+                isPopular: false,
+                ctaLink: "/login",
+                features: [
+                  "5 paper uploads / month",
+                  "AI-powered summaries",
+                  "Basic keyword search",
+                  "Knowledge graph (view only)",
+                  "PDF & DOCX support",
+                ],
+              },
+              {
+                name: "Pro",
+                monthlyPrice: 19,
+                yearlyPrice: 15,
+                accent: "bg-blue-600",
+                isPopular: true,
+                features: [
+                  "Unlimited paper uploads",
+                  "Deep AI summarization",
+                  "Semantic search across library",
+                  "Interactive knowledge graphs",
+                  "Citation-grounded Q&A",
+                  "Data & insight extraction",
+                  "Paper comparison tool",
+                ],
+              },
+              {
+                name: "Team",
+                monthlyPrice: 49,
+                yearlyPrice: 39,
+                accent: "bg-violet-600",
+                isPopular: false,
+                features: [
+                  "Everything in Pro",
+                  "Up to 10 team members",
+                  "Shared library & folders",
+                  "Collaborative annotations",
+                  "Priority AI processing",
+                  "Export to CSV / BibTeX",
+                  "Dedicated support",
+                ],
+              },
+            ]}
+          />
         </div>
       </section>
 

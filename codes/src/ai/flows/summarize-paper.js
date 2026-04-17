@@ -75,17 +75,23 @@ const summarizePaperPrompt = ai.definePrompt({
       },
     ],
   },
-  prompt: `You are an expert research assistant. Your task is to provide a comprehensive summary of the given research paper.
-Analyze the full text of the paper provided below and generate the following structured information:
-- **tldr**: A very short, "Too Long; Didn't Read" summary of the entire paper.
-- **sectionSummaries**: An array of summaries for each major section of the paper (e.g., Abstract, Introduction, Methodology, Results, Conclusion). Each element should have a 'title' and a 'summary'.
-- **keyContributions**: A list of the main contributions or innovations presented in the paper.
-- **limitations**: A list of the limitations or weaknesses of the research as discussed by the authors.
-- **futureResearchDirections**: A list of potential future research directions suggested in the paper.
+  prompt: `You are an expert, highly sophisticated academic research assistant. 
+Your task is to deeply analyze the provided document text and generate an extremely useful, high-quality, and comprehensive structured summary.
+
+CRITICAL INSTRUCTIONS:
+1. Examine the provided text. If the text appears to be completely invalid, explicitly garbled, or just a collection of random UI/navigation words (e.g., "Summary Extraction Visualization Q&A"), do NOT attempt to summarize it as a paper. Instead, set the 'tldr' to: "The uploaded document does not appear to contain readable research paper content. Please ensure you uploaded a valid, text-searchable research paper or document.", and leave the arrays empty or put "N/A".
+2. If the text IS a valid document/paper, your summary must be highly educational, well-formatted, and deeply useful to a researcher. Do not just echo back what was written; synthesize the core meaning.
+
+Generate the following structured information:
+- **tldr**: A highly insightful, 2-3 sentence "Too Long; Didn't Read" summary. It must unequivocally state the core premise, main finding, and why it matters to a user.
+- **sectionSummaries**: An array of summaries for the logical sections of the paper. Use clear titles (e.g., "Background", "Methodology", "Core Findings", "Conclusion"). Make the 'summary' very descriptive.
+- **keyContributions**: A list of the main innovations, novel methods, or primary findings.
+- **limitations**: A list of limitations, caveats, or boundaries of the research.
+- **futureResearchDirections**: A list of actionable future work suggested by the text.
 
 Present this information in a structured JSON format according to the output schema.
 
-Research Paper Text:
+Document Text:
 ---
 {{{paperText}}}
 ---`,

@@ -1,13 +1,34 @@
 'use client';
 import { useState } from 'react';
-import { MOCK_PAPERS } from '@/lib/mock-data';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { useEffect } from 'react';
 import { Button } from '@/components/aurora/Button';
 import { Input } from '@/components/aurora/Input';
 import { Card, CardTitle } from '@/components/aurora/Card';
 import { GitCompare, Search, Plus, AlertTriangle, CheckCircle2, X, Sparkles } from 'lucide-react';
 
 export default function ComparePage() {
-  const [selectedPapers, setSelectedPapers] = useState([MOCK_PAPERS[0], MOCK_PAPERS[1]]);
+  const [selectedPapers, setSelectedPapers] = useState([]);
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const papersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/papers`),
+      orderBy('uploadDate', 'desc')
+    );
+  }, [user, firestore]);
+
+  const { data: papers, isLoading } = useCollection(papersQuery);
+
+  useEffect(() => {
+    if (papers && papers.length > 0 && selectedPapers.length === 0) {
+      setSelectedPapers(papers.slice(0, 2));
+    }
+  }, [papers]);
   const accents = ['bg-aurora-blue', 'bg-aurora-violet', 'bg-aurora-cyan', 'bg-aurora-rose'];
 
   const mockComparisonData = [
@@ -84,7 +105,7 @@ export default function ComparePage() {
                <div key={paper.id} className="flex flex-col bg-white/70 backdrop-blur-2xl border border-white rounded-[24px] shadow-sm overflow-hidden ring-1 ring-aurora-border/50">
                  <div className={`px-8 py-6 bg-gradient-to-r ${i === 0 ? 'from-aurora-blue to-indigo-600' : 'from-aurora-violet to-purple-600'}`}>
                     <h3 className="text-white font-bold font-heading text-xl md:text-2xl line-clamp-2 leading-tight drop-shadow-sm">{paper.title}</h3>
-                    <p className="text-white/80 text-sm font-medium mt-2 drop-shadow-sm">{paper.authors[0]} et al. • {paper.year}</p>
+                    <p className="text-white/80 text-sm font-medium mt-2 drop-shadow-sm">{paper.authors?.[0] || 'Unknown'} et al. • {paper.publicationDate ? new Date(paper.publicationDate).getFullYear() : 'Unknown Year'}</p>
                  </div>
                  
                  <div className="flex flex-col">

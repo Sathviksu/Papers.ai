@@ -1,7 +1,8 @@
 'use client';
 
-import { useUser } from '@/firebase';
-import { MOCK_STATS, MOCK_PAPERS } from '@/lib/mock-data';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { StatTile } from '@/components/aurora/StatTile';
 import { Button } from '@/components/aurora/Button';
 import { Card, CardTitle } from '@/components/aurora/Card';
@@ -11,7 +12,24 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const papersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/papers`),
+      orderBy('uploadDate', 'desc')
+    );
+  }, [user, firestore]);
+
+  const { data: papers, isLoading } = useCollection(papersQuery);
+
   const firstName = user?.displayName ? user.displayName.split(' ')[0] : 'Researcher';
+  const displayPapers = papers || [];
+  const papersThisWeek = displayPapers.filter(
+    (p) => new Date(p.uploadDate) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  ).length;
+  const summariesGenerated = displayPapers.filter((p) => p.summaryId).length;
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
@@ -22,7 +40,7 @@ export default function DashboardPage() {
             Good morning, {firstName} <span className="inline-block origin-bottom-right hover:animate-wave cursor-default">👋</span>
           </h1>
           <p className="text-aurora-text-low mt-2 font-medium">
-            You have <span className="text-aurora-blue font-semibold">{MOCK_STATS.papersThisWeek} papers</span> ready to review
+            You have <span className="text-aurora-blue font-semibold">{papersThisWeek} papers</span> uploaded this week
           </p>
         </div>
       </div>
@@ -51,16 +69,16 @@ export default function DashboardPage() {
         {/* Tile B & C Column */}
         <div className="md:col-span-4 flex flex-col gap-6">
           <StatTile 
-            value={MOCK_STATS.totalPapers} 
+            value={displayPapers.length} 
             label="Papers Uploaded" 
-            trend={`+${MOCK_STATS.papersThisWeek} this week`} 
+            trend={`+${papersThisWeek} this week`} 
             icon={FileText} 
             className="flex-1"
           />
           <StatTile 
-            value={MOCK_STATS.summariesGenerated} 
+            value={summariesGenerated} 
             label="Summaries Generated" 
-            trend="+12% activity"
+            trend={summariesGenerated > 0 ? "+12% activity" : "No summaries yet"}
             icon={Sparkles} 
             className="flex-1"
           />
@@ -76,51 +94,45 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="flex-1 flex flex-col gap-3">
-              {MOCK_PAPERS.slice(0, 4).map((paper, i) => (
-                <Link key={paper.id} href={`/papers/${paper.id}`} className="group flex items-center justify-between p-4 rounded-[16px] bg-white border border-transparent hover:border-aurora-border hover:bg-aurora-surface-1 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${paper.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-aurora-cyan shadow-[0_0_8px_rgba(6,182,212,0.5)] animate-pulse'}`} />
-                    <div>
-                      <h4 className="font-semibold text-aurora-text-high group-hover:text-aurora-blue transition-colors line-clamp-1">{paper.title}</h4>
-                      <p className="text-sm text-aurora-text-mid line-clamp-1 mt-0.5">{paper.authors[0]} et al. • 2 days ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={paper.status === 'completed' ? 'success' : 'default'} className="hidden sm:inline-flex shrink-0">
-                      {paper.status === 'completed' ? 'Processed' : 'Processing'}
-                    </Badge>
-                    <div className="hidden group-hover:flex items-center gap-2 text-aurora-text-low opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="p-2 hover:bg-white hover:text-aurora-blue rounded-lg transition-colors"><FileText className="h-4 w-4" /></div>
-                      <div className="p-2 hover:bg-white hover:text-aurora-violet rounded-lg transition-colors"><ArrowRight className="h-4 w-4" /></div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-              {MOCK_PAPERS.length === 0 && (
+              {isLoading ? (
+                <div className="flex-1 flex items-center justify-center text-aurora-text-low py-8">
+                  Loading papers...
+                </div>
+              ) : displayPapers.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-aurora-text-low py-8 bg-aurora-surface-1 rounded-[16px] border border-dashed border-aurora-border">
                   <UploadCloud className="h-12 w-12 mb-4 opacity-50" />
                   <p>No papers yet. Upload your first paper!</p>
                 </div>
+              ) : (
+                displayPapers.slice(0, 4).map((paper, i) => {
+                  const paperStatus = paper.processingStatus || paper.status || 'processing';
+                  return (
+                  <Link key={paper.id} href={`/papers/${paper.id}`} className="group flex items-center justify-between p-4 rounded-[16px] bg-white border border-transparent hover:border-aurora-border hover:bg-aurora-surface-1 transition-all">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${paperStatus === 'completed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-aurora-cyan shadow-[0_0_8px_rgba(6,182,212,0.5)] animate-pulse'}`} />
+                      <div className="min-w-0 flex-1 text-left">
+                        <h4 className="font-semibold text-aurora-text-high group-hover:text-aurora-blue transition-colors line-clamp-1 break-words">{paper.title}</h4>
+                        <p className="text-sm text-aurora-text-mid line-clamp-1 mt-0.5 break-words">{paper.authors?.[0] || 'Unknown'} et al. • {new Date(paper.uploadDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={paperStatus === 'completed' ? 'success' : 'default'} className="hidden sm:inline-flex shrink-0">
+                        {paperStatus === 'completed' ? 'Processed' : 'Processing'}
+                      </Badge>
+                      <div className="hidden group-hover:flex items-center gap-2 text-aurora-text-low opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="p-2 hover:bg-white hover:text-aurora-blue rounded-lg transition-colors"><FileText className="h-4 w-4" /></div>
+                        <div className="p-2 hover:bg-white hover:text-aurora-violet rounded-lg transition-colors"><ArrowRight className="h-4 w-4" /></div>
+                      </div>
+                    </div>
+                  </Link>
+                )})
               )}
             </div>
           </Card>
         </div>
 
-        {/* Tile E & F Column */}
+        {/* Tile E Column */}
         <div className="md:col-span-4 flex flex-col gap-6">
-          
-          {/* Tile F - Quick Actions */}
-          <Card className="p-6 rounded-[24px]">
-            <CardTitle className="text-lg mb-4">Quick Actions</CardTitle>
-            <div className="flex flex-col gap-2">
-              <Button asChild variant="outline" className="justify-start h-12 border-aurora-border hover:bg-aurora-surface-1 hover:border-aurora-blue/30 rounded-[12px]">
-                <Link href="/upload"><UploadCloud className="mr-3 h-4 w-4 text-aurora-blue" /> Upload New Paper</Link>
-              </Button>
-              <Button asChild variant="outline" className="justify-start h-12 border-aurora-border hover:bg-aurora-surface-1 hover:border-aurora-violet/30 rounded-[12px]">
-                <Link href="/library"><Library className="mr-3 h-4 w-4 text-aurora-violet" /> View Library</Link>
-              </Button>
-            </div>
-          </Card>
 
           {/* Tile G & E combined logic - Activity Feed */}
           <Card className="flex-1 p-6 rounded-[24px] overflow-hidden relative">

@@ -1,6 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { doc } from 'firebase/firestore';
+import { askQuestionContext } from '@/lib/actions';
 import { Button } from '@/components/aurora/Button';
 import { Badge } from '@/components/aurora/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/aurora/Tabs';
@@ -12,17 +17,121 @@ import { Download, Share2, GitCompare, ChevronDown, ChevronUp, Copy, Send, Spark
 export default function PaperDetailPage() {
   const [activeTab, setActiveTab] = useState('summary');
   const [summaryLevel, setSummaryLevel] = useState('practitioner');
+  const [extractionTab, setExtractionTab] = useState('entities');
+  const [visualizationMode, setVisualizationMode] = useState('concept-map');
+  const [showFullAbstract, setShowFullAbstract] = useState(false);
   const [chatInput, setChatInput] = useState('');
   
-  const [chatHistory, setChatHistory] = useState([
-    { isUser: false, content: "Hello! I've fully analyzed \"Attention Is All You Need\". What would you like to know about this paper?", confidence: null, citations: null },
-    { isUser: true, content: "What is the primary architectural contribution of this paper?" },
-    { isUser: false, content: "The primary contribution is the Transformer architecture, which dispenses with recurrence and convolutions entirely, relying solely on an attention mechanism to draw global dependencies between input and output.", confidence: "Directly Stated", citations: ["Abstract", "Model Architecture, p.3"] }
-  ]);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const params = useParams();
+  const { id: paperId } = params;
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  const toggleAccordion = (index) => {
-    // simplified mock toggle logic
+  const paperRef = useMemoFirebase(() => {
+    if (!user || !firestore || !paperId) return null;
+    return doc(firestore, `users/${user.uid}/papers/${paperId}`);
+  }, [user, firestore, paperId]);
+  const { data: paper, isLoading: paperLoading } = useDoc(paperRef);
+
+  const summaryRef = useMemoFirebase(() => {
+    if (!user || !firestore || !paperId || !paper?.summaryId) return null;
+    return doc(firestore, `users/${user.uid}/papers/${paperId}/summaries/${paper.summaryId}`);
+  }, [user, firestore, paperId, paper?.summaryId]);
+  const { data: summary } = useDoc(summaryRef);
+
+  const insightsRef = useMemoFirebase(() => {
+    if (!user || !firestore || !paperId || !paper?.insightsId) return null;
+    return doc(firestore, `users/${user.uid}/papers/${paperId}/insights/${paper.insightsId}`);
+  }, [user, firestore, paperId, paper?.insightsId]);
+  const { data: insights } = useDoc(insightsRef);
+
+  const kgRef = useMemoFirebase(() => {
+    if (!user || !firestore || !paperId || !paper?.knowledgeGraphId) return null;
+    return doc(firestore, `users/${user.uid}/papers/${paperId}/knowledgeGraphs/${paper.knowledgeGraphId}`);
+  }, [user, firestore, paperId, paper?.knowledgeGraphId]);
+  const { data: knowledgeGraph } = useDoc(kgRef);
+  const resolvedSummary = summary || paper?.summary || null;
+  const resolvedInsights = insights || paper?.insights || null;
+  const resolvedKnowledgeGraph = knowledgeGraph || paper?.knowledgeGraph || null;
+  const extractedEntities = [
+    ...(resolvedInsights?.algorithmsModels || []).map((item) => ({
+      name: item,
+      type: 'Model/Algorithm',
+      context: 'Detected from extracted algorithms/models.',
+    })),
+    ...(resolvedInsights?.datasetsUsed || []).map((item) => ({
+      name: item,
+      type: 'Dataset',
+      context: 'Detected from extracted datasets.',
+    })),
+    ...(resolvedInsights?.evaluationMetrics || []).map((item) => ({
+      name: item,
+      type: 'Metric',
+      context: 'Detected from extracted evaluation metrics.',
+    })),
+    ...(resolvedInsights?.keyResults || []).map((item) => ({
+      name: item,
+      type: 'Key Result',
+      context: 'Detected from extracted key results.',
+    })),
+  ];
+
+  const getSummaryTextByLevel = () => {
+    if (!resolvedSummary) return 'Generating summary...';
+    if (summaryLevel === 'expert') {
+      return (
+        resolvedSummary.sectionSummaries
+          ?.map((s) => `[${s.title}]\n${s.summary}`)
+          .join('\n\n') || resolvedSummary.tldr
+      );
+    }
+    if (summaryLevel === 'beginner') {
+      const contributions = resolvedSummary.keyContributions || [];
+      if (contributions.length === 0) return resolvedSummary.tldr;
+      return (
+        `${resolvedSummary.tldr}\n\n` +
+        `In simple terms, the paper's key points are:\n` +
+        contributions.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
+      );
+    }
+    return resolvedSummary.tldr;
   };
+
+  const askQuestion = async (questionText) => {
+    if (!questionText || chatLoading) return;
+    const currentInput = questionText.trim();
+    if (!currentInput) return;
+
+    setChatInput('');
+    const updatedHistory = [...chatHistory, { isUser: true, content: currentInput }];
+    setChatHistory(updatedHistory);
+    setChatLoading(true);
+    try {
+      const answer = await askQuestionContext(paper.fullText, currentInput);
+      setChatHistory([...updatedHistory, { isUser: false, content: answer }]);
+    } catch (err) {
+      setChatHistory([
+        ...updatedHistory,
+        { isUser: false, content: "Sorry, I couldn't process your request." },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (paper && chatHistory.length === 0) {
+      setChatHistory([
+        { isUser: false, content: `Hello! I've loaded "${paper.title}". What would you like to know about this paper?`, confidence: null, citations: null }
+      ]);
+    }
+  }, [paper]);
+
+
+  if (paperLoading) return <div className="p-8 text-center text-aurora-text-mid font-semibold">Loading paper...</div>;
+  if (!paper) return <div className="p-8 text-center text-aurora-rose font-semibold">Paper Not Found</div>;
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto gap-8 relative pb-20">
@@ -34,17 +143,18 @@ export default function PaperDetailPage() {
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
-                <Badge variant="success" className="font-semibold px-3 py-1">Fully Processed</Badge>
-                <span className="text-sm font-medium text-aurora-text-low">Computer Science • AI</span>
+                <Badge variant={paper.processingStatus === 'completed' ? 'success' : 'default'} className="font-semibold px-3 py-1">
+                  {paper.processingStatus === 'completed' ? 'Fully Processed' : 'Processing'}
+                </Badge>
               </div>
               <h1 className="text-3xl font-extrabold font-heading text-aurora-text-high tracking-tight leading-tight mb-3">
-                Attention Is All You Need
+                {paper.title}
               </h1>
               <p className="text-aurora-text-mid font-medium text-sm md:text-base">
-                Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin
+                {paper.authors?.join(', ') || 'Unknown'}
               </p>
               <p className="text-aurora-text-low text-sm mt-1">
-                NeurIPS 2017 • Published: Dec 2017
+                Published: {paper.publicationDate ? new Date(paper.publicationDate).toLocaleDateString() : 'Unknown'}
               </p>
             </div>
             
@@ -58,11 +168,16 @@ export default function PaperDetailPage() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-aurora-border/50">
-            <p className="text-sm text-aurora-text-mid leading-relaxed line-clamp-2 md:line-clamp-3">
+            <p className={`text-sm text-aurora-text-mid leading-relaxed ${showFullAbstract ? 'whitespace-pre-wrap' : 'line-clamp-2 md:line-clamp-3'}`}>
               <span className="font-bold text-aurora-text-high mr-2">Abstract.</span>
-              The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely...
+              {paper.abstract}
             </p>
-            <button className="text-aurora-blue font-semibold text-sm mt-2 hover:underline">Read full abstract</button>
+            <button
+              className="text-aurora-blue font-semibold text-sm mt-2 hover:underline"
+              onClick={() => setShowFullAbstract((prev) => !prev)}
+            >
+              {showFullAbstract ? 'Show less' : 'Read full abstract'}
+            </button>
           </div>
         </div>
       </div>
@@ -105,23 +220,17 @@ export default function PaperDetailPage() {
                  <Button variant="outline" size="sm" className="bg-white"><Copy className="w-4 h-4 mr-2" /> Copy Summary</Button>
                </div>
                
-               <h3 className="text-xl font-bold font-heading mb-6 flex items-center gap-2"><Sparkles className="w-5 h-5 text-aurora-violet"/> One-Paragraph Overview</h3>
-               <div className="pl-4 border-l-4 border-aurora-blue/40 text-lg text-aurora-text-mid leading-relaxed mb-10 text-justify">
-                 {summaryLevel === 'beginner' && "This paper introduces the Transformer, a new kind of AI model that is much faster and better at translating languages than older models. Instead of reading sentences word by word in order, it looks at all words at once and figures out which ones are answering what, using a technique called 'attention'."}
-                 {summaryLevel === 'practitioner' && "The Transformer architecture replaces RNNs and CNNs with self-attention mechanisms for sequence-to-sequence tasks like translation. It achieves state-of-the-art BLEU scores while requiring significantly less theoretical training time due to highly parallelizable matrix operations."}
-                 {summaryLevel === 'expert' && "Vaswani et al. propose the Transformer, an architecture strictly based on scaled dot-product attention and multi-head attention, completely eschewing recurrence and convolutions. By relying on attention, it achieves an O(1) sequential operations limit and O(n^2\cdot d) complexity per layer, facilitating unprecedented parallelization during training."}
+               <div className="pl-4 border-l-4 border-aurora-blue/40 text-lg text-aurora-text-mid leading-relaxed mb-10 text-justify whitespace-pre-wrap">
+                 {getSummaryTextByLevel()}
                </div>
 
-               <h3 className="text-xl font-bold font-heading mb-6 border-b border-aurora-border pb-4">Claim-Level Bullets</h3>
+               <h3 className="text-xl font-bold font-heading mb-6 border-b border-aurora-border pb-4">Key Contributions</h3>
                <ul className="space-y-6">
-                 <li className="flex flex-col gap-2">
-                   <p className="text-base text-aurora-text-high font-medium">1. Transformers outperform existing RNN/CNN ensembles on WMT 2014 English-to-German translation.</p>
-                   <div className="flex items-center gap-2"><Badge variant="neutral" className="text-aurora-blue bg-aurora-blue/10 border-none cursor-pointer hover:bg-aurora-blue/20">Results, p.8</Badge></div>
-                 </li>
-                 <li className="flex flex-col gap-2">
-                   <p className="text-base text-aurora-text-high font-medium">2. Self-attention reduces total computational complexity per layer when sequence length is smaller than representation dimensionality.</p>
-                   <div className="flex items-center gap-2"><Badge variant="neutral" className="text-aurora-blue bg-aurora-blue/10 border-none cursor-pointer hover:bg-aurora-blue/20">Table 1, p.6</Badge></div>
-                 </li>
+                 {resolvedSummary?.keyContributions?.map((contrib, idx) => (
+                   <li key={idx} className="flex flex-col gap-2">
+                     <p className="text-base text-aurora-text-high font-medium">{idx + 1}. {contrib}</p>
+                   </li>
+                 )) || <li>Generating contributions...</li>}
                </ul>
             </div>
           </div>
@@ -130,7 +239,7 @@ export default function PaperDetailPage() {
         {/* EXTRACTION TAB */}
         {activeTab === 'extraction' && (
           <div className="flex flex-col gap-6">
-             <Tabs defaultValue="entities">
+             <Tabs defaultValue="entities" activeTab={extractionTab} setActiveTab={setExtractionTab}>
                 <TabsList className="bg-transparent mb-2">
                   <TabsTrigger value="entities" className="text-base h-10 px-4">Entities</TabsTrigger>
                   <TabsTrigger value="claims" className="text-base h-10 px-4">Claims</TabsTrigger>
@@ -151,22 +260,44 @@ export default function PaperDetailPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Array(5).fill(null).map((_, i) => (
+                        {extractedEntities.length > 0 ? extractedEntities.map((entity, i) => (
                           <TableRow key={i}>
-                            <TableCell className="font-semibold text-aurora-blue">Multi-Head Attention</TableCell>
-                            <TableCell><Badge>Architecture Component</Badge></TableCell>
-                            <TableCell>Linearly projects queries, keys, and values h times with different, learned linear projections.</TableCell>
+                            <TableCell className="font-semibold text-aurora-blue">{entity.name}</TableCell>
+                            <TableCell><Badge>{entity.type}</Badge></TableCell>
+                            <TableCell>{entity.context}</TableCell>
                           </TableRow>
-                        ))}
+                        )) : (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-4">Data not ready</TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </div>
                 </TabsContent>
                 <TabsContent value="claims">
-                  <div className="text-center py-12 text-aurora-text-low bg-white rounded-[24px] border border-[#D5D8F2]">Switch to Entities tab to see table UI</div>
+                  <div className="p-6 text-aurora-text-mid bg-white rounded-[24px] border border-[#D5D8F2]">
+                    <h4 className="font-bold text-aurora-text-high mb-2">Research Problem</h4>
+                    <p className="mb-6">{resolvedInsights?.researchProblem || 'Data not ready'}</p>
+                    <h4 className="font-bold text-aurora-text-high mb-2">Evaluation Metrics</h4>
+                    <ul className="list-disc pl-5">
+                      {resolvedInsights?.evaluationMetrics?.map((m, i) => <li key={i}>{m}</li>) || <li>Data not ready</li>}
+                    </ul>
+                  </div>
                 </TabsContent>
                 <TabsContent value="methodology">
-                  <div className="text-center py-12 text-aurora-text-low bg-white rounded-[24px] border border-[#D5D8F2]">Switch to Entities tab to see table UI</div>
+                  <div className="p-6 text-aurora-text-mid bg-white rounded-[24px] border border-[#D5D8F2]">
+                    <h4 className="font-bold text-aurora-text-high mb-2">Methodology Overview</h4>
+                    <p className="mb-6">{resolvedInsights?.methodology || 'Data not ready'}</p>
+                    <h4 className="font-bold text-aurora-text-high mb-2">Algorithms & Models</h4>
+                    <ul className="list-disc pl-5 mb-6">
+                      {resolvedInsights?.algorithmsModels?.map((a, i) => <li key={i}>{a}</li>) || <li>Data not ready</li>}
+                    </ul>
+                    <h4 className="font-bold text-aurora-text-high mb-2">Datasets Used</h4>
+                    <ul className="list-disc pl-5">
+                      {resolvedInsights?.datasetsUsed?.map((d, i) => <li key={i}>{d}</li>) || <li>Data not ready</li>}
+                    </ul>
+                  </div>
                 </TabsContent>
              </Tabs>
           </div>
@@ -176,33 +307,48 @@ export default function PaperDetailPage() {
         {activeTab === 'visualization' && (
           <div className="bg-white rounded-[24px] border border-aurora-border shadow-sm p-8 min-h-[500px] flex flex-col items-center justify-center relative overflow-hidden">
              <div className="absolute top-4 right-4 flex gap-2">
-                <Badge variant="outline" className="bg-white">Concept Map</Badge>
-                <Badge variant="neutral" className="opacity-50 pointer-events-none">Flowchart</Badge>
+                <button onClick={() => setVisualizationMode('concept-map')}>
+                  <Badge variant={visualizationMode === 'concept-map' ? 'outline' : 'neutral'} className="bg-white">Concept Map</Badge>
+                </button>
+                <button onClick={() => setVisualizationMode('relationships')}>
+                  <Badge variant={visualizationMode === 'relationships' ? 'outline' : 'neutral'} className="bg-white">Relationships</Badge>
+                </button>
              </div>
-             <p className="text-xl font-heading font-bold text-aurora-text-high mb-8">Model Architecture Topology</p>
+             <p className="text-xl font-heading font-bold text-aurora-text-high mb-8">
+               {visualizationMode === 'concept-map' ? 'Model Architecture Topology' : 'Entity Relationship View'}
+             </p>
              
-             {/* Faux Interactive Node Graph */}
-             <div className="relative w-full max-w-2xl h-[300px] flex items-center justify-center">
-                {/* Edges */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                  <path d="M 200 150 Q 300 100 450 150" fill="transparent" stroke="#D5D8F2" strokeWidth="3" className="animate-pulse" />
-                  <path d="M 200 150 Q 300 200 450 150" fill="transparent" stroke="#D5D8F2" strokeWidth="3" className="animate-pulse" />
-                </svg>
-                {/* Nodes */}
-                <div className="absolute left-20 z-10 w-24 h-24 rounded-full bg-gradient-to-br from-aurora-blue to-aurora-cyan shadow-[0_0_30px_rgba(67,97,238,0.4)] flex flex-col items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform">
-                   <Database className="w-6 h-6 mb-1" />
-                   <span className="text-[10px] font-bold">Encoder</span>
-                </div>
-                
-                <div className="absolute left-[50%] -translate-x-[50%] z-10 w-28 h-28 rounded-full bg-gradient-to-br from-aurora-violet to-aurora-rose shadow-[0_0_30px_rgba(123,47,190,0.4)] flex flex-col items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform border-[4px] border-white ring-2 ring-aurora-violet">
-                   <Sparkles className="w-8 h-8 mb-1" />
-                   <span className="text-[11px] font-bold text-center px-2">Multi-Head<br/>Attention</span>
-                </div>
-
-                <div className="absolute right-20 z-10 w-24 h-24 rounded-full bg-gradient-to-br from-aurora-cyan to-emerald-400 shadow-[0_0_30px_rgba(6,182,212,0.4)] flex flex-col items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform">
-                   <FileText className="w-6 h-6 mb-1" />
-                   <span className="text-[10px] font-bold">Decoder</span>
-                </div>
+             {/* Render Dynamic Nodes */}
+             <div className="relative w-full overflow-auto mt-4 max-h-[400px] bg-aurora-surface-1 rounded-[16px] p-6 border border-aurora-border">
+               {visualizationMode === 'concept-map' && resolvedKnowledgeGraph?.nodes ? (
+                 <div className="flex flex-wrap gap-4">
+                   {resolvedKnowledgeGraph.nodes.map((node) => (
+                     <Badge key={node.id} variant="outline" className="text-sm px-4 py-2 border-aurora-blue/50 bg-white">
+                       <span className="font-bold text-aurora-blue mr-2">[{node.type}]</span> {node.label}
+                     </Badge>
+                   ))}
+                 </div>
+               ) : (
+                 <div className="text-center py-10 text-aurora-text-low">Knowledge Graph parsing...</div>
+               )}
+               {visualizationMode === 'relationships' && resolvedKnowledgeGraph?.edges && (
+                 <div className="mt-8 border-t border-aurora-border pt-6">
+                   <h4 className="text-lg font-bold font-heading mb-4 text-aurora-text-high">Mapped Relationships</h4>
+                   <ul className="space-y-3">
+                     {resolvedKnowledgeGraph.edges.map((edge) => {
+                       const src = resolvedKnowledgeGraph.nodes.find(n => n.id === edge.source)?.label || edge.source;
+                       const tgt = resolvedKnowledgeGraph.nodes.find(n => n.id === edge.target)?.label || edge.target;
+                       return (
+                         <li key={edge.id} className="text-sm text-aurora-text-mid flex items-center gap-2">
+                           <Badge variant="neutral" className="bg-white">{src}</Badge>
+                           <span className="text-xs font-bold uppercase text-aurora-cyan mx-1">{edge.label}</span>
+                           <Badge variant="neutral" className="bg-white">{tgt}</Badge>
+                         </li>
+                       )
+                     })}
+                   </ul>
+                 </div>
+               )}
              </div>
           </div>
         )}
@@ -224,9 +370,9 @@ export default function PaperDetailPage() {
 
             <div className="p-4 bg-white border-t border-aurora-border">
                <div className="flex gap-2 w-full max-w-4xl mx-auto overflow-x-auto pb-3 scrollbar-hide">
-                 <button className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">What datasets were used?</button>
-                 <button className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">What are the limitations?</button>
-                 <button className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">Summarize the results</button>
+                 <button onClick={() => askQuestion('What datasets were used?')} className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">What datasets were used?</button>
+                 <button onClick={() => askQuestion('What are the limitations?')} className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">What are the limitations?</button>
+                 <button onClick={() => askQuestion('Summarize the results.')} className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">Summarize the results</button>
                </div>
                
                <div className="relative w-full max-w-4xl mx-auto flex items-end gap-2">
@@ -235,24 +381,21 @@ export default function PaperDetailPage() {
                    placeholder="Ask anything about this paper..."
                    value={chatInput}
                    onChange={(e) => setChatInput(e.target.value)}
-                   onKeyDown={(e) => {
-                     if (e.key === 'Enter' && chatInput) {
-                       setChatHistory([...chatHistory, { isUser: true, content: chatInput }]);
-                       setChatInput('');
+                   disabled={chatLoading}
+                   onKeyDown={async (e) => {
+                     if (e.key === 'Enter' && chatInput && !chatLoading) {
+                       e.preventDefault();
+                       await askQuestion(chatInput);
                      }
                    }}
                  />
                  <Button 
                    size="icon" 
-                   className="absolute right-2 top-2 h-10 w-10 shrink-0 bg-gradient-to-r from-aurora-blue to-aurora-violet rounded-full shadow-md"
-                   onClick={() => {
-                     if (chatInput) {
-                       setChatHistory([...chatHistory, { isUser: true, content: chatInput }]);
-                       setChatInput('');
-                     }
-                   }}
+                   className="absolute right-2 top-2 h-10 w-10 shrink-0 bg-gradient-to-r from-aurora-blue to-aurora-violet rounded-full shadow-md disabled:opacity-50"
+                   disabled={chatLoading}
+                   onClick={() => askQuestion(chatInput)}
                  >
-                    <Send className="h-5 w-5 ml-0.5" />
+                    {chatLoading ? <Sparkles className="h-4 w-4 animate-spin" /> : <Send className="h-5 w-5 ml-0.5" />}
                  </Button>
                </div>
             </div>

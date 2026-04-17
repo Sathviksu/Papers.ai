@@ -1,15 +1,32 @@
 import { config } from 'dotenv';
 config();
 
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
+import { openAI } from 'genkitx-openai';
 
 export const ai = genkit({
   plugins: [
-    googleAI({
-      apiKey: process.env.GEMINI_API_KEY,
+    openAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: 'https://api.groq.com/openai/v1',
+      models: [
+        {
+          name: 'llama-3.3-70b-versatile',
+          configSchema: z.any(),
+          info: {
+            label: 'Llama 3.3 70B Versatile',
+            versions: ['llama-3.3-70b-versatile'],
+            supports: {
+              multiturn: true,
+              systemRole: true,
+              media: false,
+              tools: true,
+              output: ['text', 'json'],
+            },
+          },
+        },
+      ],
     }),
   ],
-
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'openai/llama-3.3-70b-versatile',
 });

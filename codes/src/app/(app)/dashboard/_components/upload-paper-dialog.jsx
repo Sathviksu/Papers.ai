@@ -28,7 +28,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { uploadPaper } from '@/lib/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const formSchema = z.object({
@@ -85,7 +84,8 @@ export function UploadPaperDialog({ children }) {
       formData.append('paperText', values.paperText);
 
       try {
-        await uploadPaper(formData);
+        // Mock upload logic (unused component)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         toast({
           title: 'Paper Uploaded',
           description: 'Your paper has been added to your library.',

@@ -1,121 +1,247 @@
 'use client';
-import { useState } from 'react';
-import { MOCK_PAPERS } from '@/lib/mock-data';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/aurora/Card';
-import { Badge } from '@/components/aurora/Badge';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Button } from '@/components/aurora/Button';
 import { Input } from '@/components/aurora/Input';
-import { Search, Star, Trash2, Download, Eye, FileBox } from 'lucide-react';
+import { Search, Star, Trash2, Download, Eye, FileBox, BookOpen, Zap, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LibraryPage() {
+const CARD_GRADIENTS = [
+  { from: 'from-violet-500', to: 'to-indigo-600', glow: 'shadow-violet-500/20', light: 'bg-violet-50', text: 'text-violet-600', dot: 'bg-violet-500' },
+  { from: 'from-blue-500', to: 'to-cyan-500', glow: 'shadow-blue-500/20', light: 'bg-blue-50', text: 'text-blue-600', dot: 'bg-blue-500' },
+  { from: 'from-rose-500', to: 'to-pink-600', glow: 'shadow-rose-500/20', light: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-500' },
+  { from: 'from-amber-500', to: 'to-orange-500', glow: 'shadow-amber-500/20', light: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500' },
+  { from: 'from-emerald-500', to: 'to-teal-500', glow: 'shadow-emerald-500/20', light: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  { from: 'from-fuchsia-500', to: 'to-purple-600', glow: 'shadow-fuchsia-500/20', light: 'bg-fuchsia-50', text: 'text-fuchsia-600', dot: 'bg-fuchsia-500' },
+];
+
+function PaperCard({ paper, idx }) {
+  const paperStatus = paper.processingStatus || paper.status || 'processing';
+  const g = CARD_GRADIENTS[idx % CARD_GRADIENTS.length];
+  const uploadDateStr = paper.uploadDate
+    ? new Date(paper.uploadDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+
+  return (
+    <div className="group relative rounded-[28px] overflow-hidden cursor-pointer h-[300px]">
+      {/* Glow ring on hover */}
+      <div className={`absolute inset-0 rounded-[28px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${g.from} ${g.to} blur-[1px]`} />
+
+      {/* Card body */}
+      <div className="absolute inset-[1.5px] rounded-[27px] bg-white flex flex-col overflow-hidden">
+        
+        {/* Gradient header strip */}
+        <div className={`relative h-24 bg-gradient-to-br ${g.from} ${g.to} flex-shrink-0 overflow-hidden`}>
+          {/* Abstract circles */}
+          <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-white/10" />
+          <div className="absolute top-4 -right-4 w-16 h-16 rounded-full bg-white/10" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/10" />
+
+          {/* Status pill */}
+          <div className="absolute bottom-3 left-4">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-widest">
+              <span className={`w-1.5 h-1.5 rounded-full ${paperStatus === 'completed' ? 'bg-white' : 'bg-yellow-300 animate-pulse'}`} />
+              {paperStatus === 'completed' ? 'Processed' : 'Processing'}
+            </span>
+          </div>
+
+          {/* Favorite */}
+          <button className={`absolute top-3 right-3 p-1.5 rounded-full bg-white/20 backdrop-blur-sm transition-colors hover:bg-white/30 ${paper.favorite ? 'text-yellow-200' : 'text-white/80'}`}>
+            <Star className={`w-3.5 h-3.5 ${paper.favorite ? 'fill-yellow-200' : ''}`} />
+          </button>
+
+          {/* Doc icon */}
+          <div className="absolute top-3 left-4">
+            <BookOpen className="w-5 h-5 text-white/70" />
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex flex-col flex-1 p-5 min-h-0">
+          <h3 className={`font-heading font-bold text-base leading-snug text-slate-800 line-clamp-2 group-hover:${g.text} transition-colors duration-200 mb-2`}>
+            {paper.title}
+          </h3>
+          <p className="text-xs text-slate-400 font-medium line-clamp-1 mb-auto">
+            {paper.authors?.[0] || 'Unknown Author'}{paper.authors?.length > 1 ? ` +${paper.authors.length - 1}` : ''}
+          </p>
+
+          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
+            <Calendar className="w-3 h-3 text-slate-400 flex-shrink-0" />
+            <span className="text-[11px] text-slate-400">{uploadDateStr}</span>
+            {paper.tags?.length > 0 && (
+              <>
+                <span className="text-slate-200 mx-1">•</span>
+                <span className={`text-[11px] font-semibold ${g.text} truncate`}>{paper.tags[0]}</span>
+                {paper.tags.length > 1 && <span className="text-[11px] text-slate-400">+{paper.tags.length - 1}</span>}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Hover action bar */}
+        <div className="absolute bottom-0 inset-x-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
+          <div className={`bg-gradient-to-r ${g.from} ${g.to} p-4 flex items-center justify-between`}>
+            <Link href={`/papers/${paper.id}`} className="flex items-center gap-2 text-white font-semibold text-sm hover:underline">
+              <Eye className="w-4 h-4" />
+              Open Paper
+            </Link>
+            <div className="flex items-center gap-1">
+              <button className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors">
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LibraryContent() {
+  const searchParams = useSearchParams();
   const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams?.get('search') || '');
 
-  const accents = ['bg-aurora-blue', 'bg-aurora-violet', 'bg-aurora-cyan', 'bg-aurora-rose', 'bg-emerald-500', 'bg-amber-500'];
+  useEffect(() => {
+    const q = searchParams?.get('search');
+    if (q !== null && q !== undefined) setSearch(q);
+  }, [searchParams]);
 
-  const filteredPapers = MOCK_PAPERS.filter(p => {
-    if (filter === 'completed' && p.status !== 'completed') return false;
-    if (filter === 'processing' && p.status !== 'processing') return false;
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const papersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, `users/${user.uid}/papers`), orderBy('uploadDate', 'desc'));
+  }, [user, firestore]);
+
+  const { data: papers, isLoading } = useCollection(papersQuery);
+
+  const filteredPapers = (papers || []).filter(p => {
+    const paperStatus = p.processingStatus || p.status || 'processing';
+    if (filter === 'completed' && paperStatus !== 'completed') return false;
+    if (filter === 'processing' && paperStatus !== 'processing') return false;
     if (filter === 'favorites' && !p.favorite) return false;
     if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
+  const FILTERS = [
+    { key: 'all', label: 'All Papers' },
+    { key: 'completed', label: 'Processed' },
+    { key: 'processing', label: 'In Progress' },
+    { key: 'favorites', label: '★ Favorites' },
+  ];
+
   return (
-    <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl lg:text-4xl font-extrabold font-heading text-aurora-text-high tracking-tight">
-          My Library
-        </h1>
+    <div className="flex flex-col gap-10 w-full max-w-7xl mx-auto pb-16">
+
+      {/* Hero Header */}
+      <div className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-aurora-blue via-aurora-violet to-aurora-rose p-10 text-white shadow-2xl">
+        {/* Background blobs */}
+        <div className="absolute top-0 right-0 w-[350px] h-[350px] bg-white/5 rounded-full blur-3xl -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-[250px] h-[250px] bg-white/5 rounded-full blur-2xl -ml-16 -mb-16" />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm mb-4">
+              <Zap className="w-3.5 h-3.5 text-yellow-300" />
+              <span className="text-xs font-bold uppercase tracking-widest">{papers?.length ?? 0} Papers Total</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-heading font-extrabold tracking-tight leading-none mb-3">
+              My Library
+            </h1>
+            <p className="text-white/70 text-base max-w-md">
+              Browse, search, and interact with all your uploaded research documents in one place.
+            </p>
+          </div>
+
+          {/* Inline search in hero */}
+          <div className="relative w-full md:w-96 flex-shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search titles, authors..."
+              className="w-full pl-11 pr-5 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white placeholder:text-white/50 text-sm font-medium outline-none focus:bg-white/25 focus:border-white/40 transition-all"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
-        <div className="relative w-full flex-1 max-w-xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-aurora-text-low" />
-          <Input 
-            placeholder="Semantic search across all papers..." 
-            className="pl-12 h-[52px] rounded-full border-aurora-border shadow-sm text-base bg-white focus-visible:ring-aurora-blue/50"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="flex bg-aurora-surface-2 p-1.5 rounded-full w-full md:w-auto overflow-x-auto border border-aurora-border shadow-sm">
-          {['all', 'processing', 'completed', 'favorites'].map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-5 py-2 rounded-full text-sm font-semibold capitalize tracking-wide transition-all whitespace-nowrap ${
-                filter === f ? 'bg-white text-aurora-blue shadow-[0_2px_8px_rgba(67,97,238,0.15)]' : 'text-aurora-text-mid hover:text-aurora-text-high hover:bg-aurora-surface-3'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
+      {/* Filter Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 border ${
+              filter === f.key
+                ? 'bg-aurora-blue text-white border-aurora-blue shadow-lg shadow-aurora-blue/30'
+                : 'bg-white text-aurora-text-mid border-aurora-border hover:border-aurora-blue/30 hover:text-aurora-blue hover:bg-aurora-blue/5'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <div className="ml-auto text-sm font-medium text-aurora-text-low whitespace-nowrap hidden md:block">
+          {filteredPapers.length} result{filteredPapers.length !== 1 ? 's' : ''}
         </div>
       </div>
 
-      {filteredPapers.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Grid */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-aurora-blue border-t-transparent animate-spin" />
+            <p className="text-aurora-text-low font-medium">Loading your papers…</p>
+          </div>
+        </div>
+      ) : filteredPapers.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPapers.map((paper, i) => (
-            <Card key={paper.id} className="group relative flex flex-col h-[280px] overflow-hidden border-[#D5D8F2] bg-white">
-              <div className={`h-2 w-full ${accents[paper.id.length % accents.length]}`} />
-              
-              <div className="absolute top-4 right-4 z-10 transition-opacity">
-                <button className={`text-aurora-text-low hover:text-amber-500 transition-colors ${paper.favorite ? 'text-amber-500 drop-shadow-[0_2px_4px_rgba(245,158,11,0.4)]' : ''}`}>
-                  <Star className={`w-5 h-5 ${paper.favorite ? 'fill-amber-500' : ''}`} />
-                </button>
-              </div>
-
-              <CardHeader className="flex-1 pb-2 px-6 pt-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge variant={paper.status === 'completed' ? 'success' : 'default'} className="uppercase font-bold tracking-wider text-[10px] h-6 px-2.5">
-                    {paper.status === 'completed' ? 'Processed' : 'Processing'}
-                  </Badge>
-                  <span className="text-[10px] font-bold text-aurora-text-low uppercase tracking-wider">2 days ago</span>
-                </div>
-                <CardTitle className="text-xl font-heading leading-tight line-clamp-2 mb-2 pr-6 group-hover:text-aurora-blue transition-colors">
-                  {paper.title}
-                </CardTitle>
-                <p className="text-sm font-medium text-aurora-text-mid line-clamp-1">
-                  {paper.authors.join(', ')} • {paper.year}
-                </p>
-              </CardHeader>
-              
-              <CardContent className="mt-auto px-6 pb-6 relative z-10 bg-white">
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {paper.tags?.slice(0, 3).map(tag => (
-                    <Badge key={tag} variant="neutral" className="bg-aurora-surface-1">{tag}</Badge>
-                  ))}
-                  {paper.tags?.length > 3 && <Badge variant="neutral" className="bg-aurora-surface-1">+{paper.tags.length - 3}</Badge>}
-                </div>
-                
-                {/* Action Reveal */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex items-center justify-between border-t border-aurora-border shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-20">
-                  <Button asChild variant="outline" size="sm" className="bg-white hover:bg-aurora-surface-1 border-aurora-border shadow-sm rounded-[8px]">
-                    <Link href={`/papers/${paper.id}`}><Eye className="w-4 h-4 mr-2 text-aurora-blue" /> View</Link>
-                  </Button>
-                  <div className="flex flex-row gap-2 relative z-30">
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-aurora-text-mid hover:text-aurora-blue hover:bg-aurora-blue/10 rounded-full"><Download className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-aurora-text-mid hover:text-aurora-rose hover:bg-aurora-rose/10 rounded-full"><Trash2 className="w-4 h-4" /></Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <PaperCard key={paper.id} paper={paper} idx={i} />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center p-16 bg-white rounded-[24px] border border-aurora-border shadow-sm text-center animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-aurora-surface-2 to-aurora-surface-3 flex items-center justify-center mb-6 shadow-inner">
-            <FileBox className="w-10 h-10 text-aurora-blue" />
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="relative mb-8">
+            <div className="w-28 h-28 rounded-[28px] bg-gradient-to-br from-aurora-surface-2 to-aurora-surface-3 flex items-center justify-center rotate-6 shadow-lg">
+              <FileBox className="w-12 h-12 text-aurora-blue/40 -rotate-6" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-aurora-violet/20 flex items-center justify-center">
+              <Search className="w-4 h-4 text-aurora-violet" />
+            </div>
           </div>
-          <h3 className="text-2xl font-bold font-heading text-aurora-text-high mb-2">No papers found</h3>
-          <p className="text-aurora-text-mid mb-8 max-w-md">We couldn't find any papers matching your current filters. Adjust your search or upload a new paper.</p>
-          <Button asChild className="bg-gradient-to-r from-aurora-blue to-aurora-violet rounded-full px-8 h-12 shadow-md hover:shadow-lg transition-shadow">
-            <Link href="/upload">Upload your first paper</Link>
-          </Button>
+          <h3 className="text-2xl font-bold font-heading text-aurora-text-high mb-3">Nothing found</h3>
+          <p className="text-aurora-text-mid mb-8 max-w-sm">No papers match your current filters. Try a different search or upload a new document.</p>
+          <Link
+            href="/upload"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-aurora-blue to-aurora-violet text-white px-8 h-12 rounded-full font-semibold shadow-lg shadow-aurora-blue/25 hover:shadow-xl hover:shadow-aurora-blue/30 transition-all hover:-translate-y-0.5"
+          >
+            <FileBox className="w-4 h-4" />
+            Upload Paper
+          </Link>
         </div>
       )}
     </div>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex w-full items-center justify-center p-16">
+        <div className="w-8 h-8 rounded-full border-4 border-aurora-blue border-t-transparent animate-spin" />
+      </div>
+    }>
+      <LibraryContent />
+    </Suspense>
   );
 }

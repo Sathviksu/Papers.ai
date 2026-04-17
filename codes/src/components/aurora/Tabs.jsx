@@ -1,8 +1,20 @@
 "use client";
 import React, { useState } from 'react';
 
-export function Tabs({ defaultValue, className = '', children, ...props }) {
-  const [activeTab, setActiveTab] = useState(defaultValue);
+export function Tabs({
+  defaultValue,
+  activeTab: controlledActiveTab,
+  setActiveTab: controlledSetActiveTab,
+  className = '',
+  children,
+  ...props
+}) {
+  const [uncontrolledActiveTab, setUncontrolledActiveTab] = useState(defaultValue);
+  const isControlled =
+    typeof controlledActiveTab !== 'undefined' &&
+    typeof controlledSetActiveTab === 'function';
+  const activeTab = isControlled ? controlledActiveTab : uncontrolledActiveTab;
+  const setActiveTab = isControlled ? controlledSetActiveTab : setUncontrolledActiveTab;
   return (
     <div className={className} {...props}>
       {React.Children.map(children, child => {

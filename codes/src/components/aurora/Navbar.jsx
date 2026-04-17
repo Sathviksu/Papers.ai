@@ -1,14 +1,34 @@
+'use client';
+
 import { Search, Bell } from 'lucide-react';
 import { Input } from './Input';
 import { Button } from './Button';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function Navbar({ user }) {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      router.push(`/library?search=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 h-16 shrink-0 glass-nav border-b border-[#D5D8F2] flex items-center justify-between px-6 md:px-8">
       <div className="flex flex-1 items-center gap-4">
         <div className="w-full max-w-md relative hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-aurora-text-low" />
-          <Input placeholder="Search papers, claims, authors..." className="pl-10 h-10 bg-white/50 focus:bg-white border-aurora-border" />
+          <Input 
+            placeholder="Search papers, claims, authors..." 
+            className="pl-10 h-10 bg-white/50 focus:bg-white border-aurora-border"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
+          />
         </div>
       </div>
       

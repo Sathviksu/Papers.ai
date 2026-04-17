@@ -1,10 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { MOCK_PAPERS } from '@/lib/mock-data';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Card } from '@/components/aurora/Card';
 import { Button } from '@/components/aurora/Button';
-import { FileJson, FileType2, FileText, Download, CheckCircle2, ChevronRight } from 'lucide-react';
-
+import { FileJson, FileType2, FileText, Download, CheckCircle2, ChevronRight, File, FileCode, Database, Search } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { saveAs } from 'file-saver';
 const CheckboxTile = ({ checked, onChange, label, sublabel }) => (
   <label className={`flex flex-col gap-2 p-5 rounded-[20px] border-[2px] cursor-pointer transition-all duration-200 shadow-sm ${
     checked ? 'bg-aurora-blue/5 border-aurora-blue shadow-[0_0_15px_rgba(67,97,238,0.1)]' : 'bg-white border-aurora-border hover:border-aurora-blue/40 hover:bg-aurora-surface-1'
@@ -28,13 +32,13 @@ const FormatTile = ({ icon: Icon, title, selected, onClick }) => (
         : 'border-aurora-border bg-aurora-surface-1 hover:bg-white text-aurora-text-mid hover:text-aurora-text-high opacity-70 hover:opacity-100 hover:scale-[1.01]'
     }`}
   >
-    <Icon className={`w-14 h-14 mb-4 ${selected ? 'text-aurora-blue drop-shadow-sm' : 'text-aurora-text-low'}`} strokeWidth={1.5} />
-    <span className={`text-xl font-bold font-heading tracking-wide ${selected ? 'text-aurora-text-high' : 'text-aurora-text-mid'}`}>{title}</span>
+    <Icon className={`w-8 h-8 mb-3 ${selected ? 'text-aurora-blue drop-shadow-sm' : 'text-aurora-text-low'}`} strokeWidth={1.5} />
+    <span className={`text-lg font-bold font-heading tracking-wide ${selected ? 'text-aurora-text-high' : 'text-aurora-text-mid'}`}>{title}</span>
   </button>
 );
 
 export default function ExportPage() {
-  const [selectedFormat, setSelectedFormat] = useState('JSON');
+  const [selectedFormat, setSelectedFormat] = useState('PDF');
   const [contentSelection, setContentSelection] = useState({
     summary: true,
     entities: true,
@@ -42,25 +46,126 @@ export default function ExportPage() {
     graph: false,
     qna: false
   });
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const papersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/papers`),
+      orderBy('uploadDate', 'desc')
+    );
+  }, [user, firestore]);
+
+  const { data: papers, isLoading } = useCollection(papersQuery);
+  const displayPapers = papers || [];
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPaperIds, setSelectedPaperIds] = useState([]);
+
+  // Auto-select first two papers if none selected yet on load
+  useEffect(() => {
+    if (displayPapers.length > 0 && selectedPaperIds.length === 0) {
+      setSelectedPaperIds(displayPapers.slice(0, 2).map(p => p.id));
+    }
+  }, [displayPapers]);
+
+  const filteredPapers = displayPapers.filter(p => 
+    p.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   
   const [isExporting, setIsExporting] = useState(false);
   const [exportComplete, setExportComplete] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const startExport = () => {
+  // Reset export status if user changes their selection
+  useEffect(() => {
+    if (exportComplete || isExporting) {
+      setExportComplete(false);
+      setIsExporting(false);
+      setProgress(0);
+    }
+  }, [selectedPaperIds, contentSelection, selectedFormat]);
+
+  const generateExtractedDataStr = (paperList) => {
+    let str = "";
+    paperList.forEach(p => {
+       str += `\n=========================================\n`;
+       str += `Title: ${p.title}\n`;
+       str += `Authors: ${p.authors?.join(', ') || 'Unknown'}\n`;
+       str += `\n`;
+       if (contentSelection.summary) {
+         str += `--- Abstract / Summary ---\n${p.abstract || 'No abstract available.'}\n\n`;
+       }
+       if (contentSelection.entities) {
+         str += `--- Full Text Snippet ---\n${p.fullText?.substring(0, 500) || ''}...\n\n`;
+       }
+    });
+    return str;
+  };
+
+  const startExport = async () => {
+    if (selectedPaperIds.length === 0) {
+      alert("Please select at least one paper to export.");
+      return;
+    }
+    
     setIsExporting(true);
     setProgress(0);
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          clearInterval(interval);
-          setExportComplete(true);
-          return 100;
+    
+    const interval = setInterval(() => setProgress(p => p < 90 ? p + 15 : p), 300);
+
+    const selectedPaperData = displayPapers.filter(p => selectedPaperIds.includes(p.id));
+    const strPayload = generateExtractedDataStr(selectedPaperData);
+    const fileName = `PapersAI_Export_${new Date().toISOString().split('T')[0]}`;
+
+    setTimeout(async () => {
+      clearInterval(interval);
+      setProgress(100);
+
+      try {
+        if (selectedFormat === 'TXT') {
+          saveAs(new Blob([strPayload], { type: "text/plain;charset=utf-8" }), `${fileName}.txt`);
+        } else if (selectedFormat === 'Markdown') {
+          saveAs(new Blob([`# Papers.ai Export\n` + strPayload], { type: "text/markdown;charset=utf-8" }), `${fileName}.md`);
+        } else if (selectedFormat === 'JSON') {
+          saveAs(new Blob([JSON.stringify(selectedPaperData, null, 2)], { type: "application/json;charset=utf-8" }), `${fileName}.json`);
+        } else if (selectedFormat === 'CSV') {
+          let csv = "Title,Authors,Date\n";
+          selectedPaperData.forEach(p => csv += `"${p.title}","${p.authors?.join(', ')}","${p.publicationDate}"\n`);
+          saveAs(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${fileName}.csv`);
+        } else if (selectedFormat === 'PDF') {
+          const doc = new jsPDF();
+          const lines = doc.splitTextToSize(strPayload, 180);
+          
+          let y = 15;
+          for (let i = 0; i < lines.length; i++) {
+            if (y > 280) {
+              doc.addPage();
+              y = 15;
+            }
+            doc.text(lines[i], 15, y);
+            y += 7;
+          }
+          doc.save(`${fileName}.pdf`);
+        } else if (selectedFormat === 'DOCX') {
+          const docxDoc = new Document({
+            sections: [{
+              properties: {},
+              children: strPayload.split('\n').map(line => new Paragraph({ children: [new TextRun(line)] }))
+            }]
+          });
+          const blob = await Packer.toBlob(docxDoc);
+          saveAs(blob, `${fileName}.docx`);
         }
-        return p + 15;
-      });
-    }, 300);
+      } catch (err) {
+        console.error("Export error:", err);
+      }
+
+      setExportComplete(true);
+    }, 1500);
   };
+
 
   return (
     <div className="flex flex-col items-center w-full max-w-4xl mx-auto py-8 lg:py-12 fade-in animate-in duration-500">
@@ -77,20 +182,46 @@ export default function ExportPage() {
         
         {/* STEP 1 */}
         <section className="bg-white p-8 md:p-10 rounded-[32px] border border-aurora-border shadow-sm">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-aurora-blue text-white font-bold shadow-sm">1</div>
-            <h2 className="text-2xl font-bold font-heading text-aurora-text-high">Select Papers</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-aurora-blue text-white font-bold shadow-sm">1</div>
+              <h2 className="text-2xl font-bold font-heading text-aurora-text-high">Select Papers</h2>
+            </div>
+            
+            <div className="relative w-full sm:w-64 lg:w-80 ml-12 sm:ml-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-aurora-text-low" />
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-aurora-surface-1 border border-aurora-border rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aurora-blue/50 focus:border-aurora-blue/50 transition-all"
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-12">
-            {[MOCK_PAPERS[0], MOCK_PAPERS[1], MOCK_PAPERS[2]].map((p, i) => (
-              <label key={p.id} className="flex items-start gap-4 p-4 rounded-[16px] border border-aurora-border/50 bg-aurora-surface-1/50 cursor-pointer hover:bg-aurora-surface-1 transition-colors">
-                <input type="checkbox" defaultChecked={i < 2} className="mt-1.5 w-4 h-4 accent-aurora-blue shrink-0" />
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm text-aurora-text-high leading-tight line-clamp-1">{p.title}</span>
-                  <span className="text-xs text-aurora-text-low mt-1 font-medium">{p.authors[0]} et al. • {p.year}</span>
-                </div>
-              </label>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-12 max-h-44 overflow-y-auto pr-2 custom-scrollbar mt-6">
+            {isLoading ? <div className="text-sm font-medium text-aurora-text-mid">Loading papers...</div> : 
+             filteredPapers.length > 0 ? (
+               filteredPapers.map((p, i) => (
+                 <label key={p.id} className="flex items-start gap-4 p-4 rounded-[16px] border border-aurora-border/50 bg-aurora-surface-1/50 cursor-pointer hover:bg-aurora-surface-1 transition-colors">
+                   <input 
+                     type="checkbox" 
+                     className="mt-1.5 w-4 h-4 accent-aurora-blue shrink-0"
+                     checked={selectedPaperIds.includes(p.id)}
+                     onChange={(e) => {
+                       if (e.target.checked) setSelectedPaperIds(prev => [...prev, p.id]);
+                       else setSelectedPaperIds(prev => prev.filter(id => id !== p.id));
+                     }}
+                   />
+                   <div className="flex flex-col">
+                     <span className="font-bold text-sm text-aurora-text-high leading-tight line-clamp-1">{p.title}</span>
+                     <span className="text-xs text-aurora-text-low mt-1 font-medium">{p.authors?.[0] || 'Unknown'} et al. • {p.publicationDate ? new Date(p.publicationDate).getFullYear() : 'Unknown Year'}</span>
+                   </div>
+                 </label>
+               ))
+             ) : (
+               <div className="col-span-full py-4 text-sm font-medium text-aurora-text-mid">No papers found matching '{searchQuery}'</div>
+             )}
           </div>
         </section>
 
@@ -140,10 +271,13 @@ export default function ExportPage() {
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-aurora-cyan text-white font-bold shadow-sm">3</div>
             <h2 className="text-2xl font-bold font-heading text-aurora-text-high">Choose Format</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pl-12">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6 pl-0 sm:pl-12">
+             <FormatTile icon={File} title="PDF" selected={selectedFormat === 'PDF'} onClick={() => setSelectedFormat('PDF')} />
+             <FormatTile icon={FileText} title="DOCX" selected={selectedFormat === 'DOCX'} onClick={() => setSelectedFormat('DOCX')} />
+             <FormatTile icon={FileType2} title="TXT" selected={selectedFormat === 'TXT'} onClick={() => setSelectedFormat('TXT')} />
+             <FormatTile icon={Database} title="CSV" selected={selectedFormat === 'CSV'} onClick={() => setSelectedFormat('CSV')} />
              <FormatTile icon={FileJson} title="JSON" selected={selectedFormat === 'JSON'} onClick={() => setSelectedFormat('JSON')} />
-             <FormatTile icon={FileType2} title="CSV" selected={selectedFormat === 'CSV'} onClick={() => setSelectedFormat('CSV')} />
-             <FormatTile icon={FileText} title="Markdown" selected={selectedFormat === 'Markdown'} onClick={() => setSelectedFormat('Markdown')} />
+             <FormatTile icon={FileCode} title="Markdown" selected={selectedFormat === 'Markdown'} onClick={() => setSelectedFormat('Markdown')} />
           </div>
         </section>
 
@@ -164,10 +298,16 @@ export default function ExportPage() {
                <h3 className="text-2xl font-bold font-heading text-aurora-text-high mb-2">Export Complete!</h3>
                <p className="text-aurora-text-mid font-medium mb-8">Your {selectedFormat} file is ready.</p>
                <div className="flex gap-4">
-                 <Button className="h-12 px-8 rounded-full font-bold shadow-md bg-white border border-aurora-border text-aurora-text-high hover:bg-aurora-surface-1">
+                 <Button 
+                   onClick={() => window.location.href = '/dashboard'} 
+                   className="h-12 px-8 rounded-full font-bold text-white bg-aurora-text-high hover:bg-black shadow-md transition-colors"
+                 >
                    Return to Dashboard
                  </Button>
-                 <Button className="h-12 px-8 rounded-full font-bold text-white bg-aurora-text-high hover:bg-black shadow-md">
+                 <Button 
+                   onClick={startExport}
+                   className="h-12 px-8 rounded-full font-bold text-white bg-aurora-text-high hover:bg-black shadow-md transition-colors"
+                 >
                    <Download className="w-4 h-4 mr-2" /> Download File again
                  </Button>
                </div>
