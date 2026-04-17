@@ -90,6 +90,15 @@ const askPaperQnAFlow = ai.defineFlow(
  * @param input An object containing the question and the relevant context from the paper.
  * @returns A promise that resolves to an object containing the AI-generated answer.
  */
+/**
+ * Generates an answer to a natural language question about a research paper
+ * using Retrieval Augmented Generation (RAG) principles. This function expects
+ * pre-retrieved context relevant to the question.
+ *
+ * @param input An object containing the question and the relevant context from the paper.
+ * @returns A promise that resolves to an object containing the AI-generated answer.
+ */
+
 export async function askPaperQnA(input) {
   return askPaperQnAFlow(input);
 }
