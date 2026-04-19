@@ -1,9 +1,4 @@
 const nextConfig = {
-<<<<<<< HEAD
-=======
-  /* config options here */
-  /* config options here */
->>>>>>> 4de8165856a34099a521c272bbf8b032aeba44ea
   eslint: {
     ignoreDuringBuilds: true,
   },

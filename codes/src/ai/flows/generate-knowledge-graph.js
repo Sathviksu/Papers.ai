@@ -7,8 +7,9 @@
  * - GenerateKnowledgeGraphOutput - The return type for the generateKnowledgeGraph function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, MODELS } from '@/ai/genkit';
 import { z } from 'genkit';
+import { extractRawText, isRateLimitError, isValidationError } from '@/ai/utils';
 
 const GenerateKnowledgeGraphInputSchema = z.object({
   paperText: z
@@ -26,11 +27,13 @@ const GenerateKnowledgeGraphOutputSchema = z.object({
             'Unique identifier for the node (e.g., "concept-1", "model-2").'
           ),
         type: z
-          .enum(['Concept', 'Model', 'Dataset', 'Method'])
-          .describe('The type of entity.'),
+          .string()
+          .describe('Concept | Model | Dataset | Method'),
         label: z.string().describe('The name or description of the entity.'),
       })
     )
+    .optional()
+    .default([])
     .describe('A list of nodes representing key entities in the paper.'),
   edges: z
     .array(
@@ -47,11 +50,34 @@ const GenerateKnowledgeGraphOutputSchema = z.object({
           ),
       })
     )
+    .optional()
+    .default([])
     .describe('A list of edges representing relationships between entities.'),
 });
 
 export async function generateKnowledgeGraph(input) {
-  return generateKnowledgeGraphFlow(input);
+  try {
+    return await generateKnowledgeGraphFlow(input);
+  } catch (err) {
+    if (isRateLimitError(err) || isValidationError(err)) {
+      console.warn('⏳ [KG FALLBACK] Retrying with secondary model...');
+      try {
+        const fallbackPrompt = ai.definePrompt({
+          name: 'generateKnowledgeGraphFallback',
+          model: MODELS.fallback,
+          input: { schema: GenerateKnowledgeGraphInputSchema },
+          output: { schema: GenerateKnowledgeGraphOutputSchema },
+          prompt: knowledgeGraphPrompt.prompt,
+        });
+        const resp = await fallbackPrompt(input);
+        return resp.output;
+      } catch (fErr) {
+        console.error('❌ [KG FALLBACK FAILED]', fErr);
+        throw err;
+      }
+    }
+    throw err;
+  }
 }
 
 const knowledgeGraphPrompt = ai.definePrompt({
@@ -78,29 +104,29 @@ const knowledgeGraphPrompt = ai.definePrompt({
       },
     ],
   },
-  prompt: `You are an elite academic knowledge-graph architect. Your goal is to parse the provided research paper text and extract a deep, highly accurate structured knowledge graph describing its core entities and relationships.
+  prompt: `You are an elite academic knowledge-graph architect. Parse the research paper text and extract a RICH, DENSELY-CONNECTED knowledge graph.
 
-CRITICAL INSTRUCTIONS:
-1. Validate the text. If the text appears to be completely invalid, explicitly garbled, or just a collection of random UI/navigation words (e.g., "Summary Extraction Visualization Q&A"), do NOT invent a graph. Return a single node with type "Concept", id "error", and label "No valid research text detected", and leave edges empty.
-2. If the text IS a valid paper, generate a rich, densely connected graph that genuinely reflects the paper's scientific contributions.
+CRITICAL RULES:
+1. Extract a MINIMUM of 15 nodes, ideally 20-25 for any substantial paper. Do NOT stop at 4-6 nodes.
+2. If the text seems completely invalid or random UI words (like "Summary Extraction Q&A"), return ONE node: id="error", type="Concept", label="No valid research text detected", and edges=[].
+3. For valid papers: identify ALL important entities across these types:
+   - Concept: fundamental ideas, theories, principles (e.g., "Blockchain", "Consensus Mechanism", "Supply Chain Transparency")
+   - Model: algorithms, architectures, frameworks (e.g., "PBFT", "IBM Food Trust", "Smart Contract")
+   - Dataset: data sources, benchmarks, experiments (e.g., "Walmart pilot data", "RFID logs")
+   - Method: procedures, techniques (e.g., "Distributed Ledger", "Hash Function", "Merkle Tree")
+4. Every node MUST have exactly: id (string like "concept-1"), type (Concept|Model|Dataset|Method), label (concise name).
+5. Create MEANINGFUL edges between entities. Aim for at least as many edges as nodes.
+6. Edge labels must be active verbs: "uses", "enables", "improves", "applies to", "proposes", "compares", "implements", "evaluates", "based on", "extends", "validates".
+7. Edge source/target MUST exactly match the node id strings you define above.
 
-Identify the following types of entities:
-- **Concepts**: Fundamental ideas, theories, or principles discussed.
-- **Models**: Algorithms, architectures, or frameworks proposed or used.
-- **Datasets**: Collections of data used for training, testing, or evaluation.
-- **Methods**: Procedures, techniques, or approaches employed in the research.
-
-For each identified entity, assign it a unique 'id' (e.g., "concept-1", "model-A"), its 'type', and its 'label'. Ensure entity names are concise and represent the core concept.
-
-Then, identify meaningful relationships between these entities. For each relationship, create an 'edge' with a unique 'id', a 'source' node ID, a 'target' node ID, and a 'label' describing the relationship (e.g., "uses", "implements", "evaluates", "proposes", "applies", "compared with", "based on", "utilizes"). The 'label' should clearly articulate the exact scientific nature of the connection.
-
-Ensure the output is a JSON object with two top-level keys: "nodes" (array of node objects) and "edges" (array of edge objects).
+Return a JSON object with keys "nodes" (array) and "edges" (array). Nothing else.
 
 Document Text:
 ---
 {{{paperText}}}
 ---`,
 });
+
 
 const generateKnowledgeGraphFlow = ai.defineFlow(
   {
@@ -109,7 +135,33 @@ const generateKnowledgeGraphFlow = ai.defineFlow(
     outputSchema: GenerateKnowledgeGraphOutputSchema,
   },
   async (input) => {
-    const { output } = await knowledgeGraphPrompt(input);
+    const MAX_CHARS = 28_000;
+    const truncatedInput = {
+      ...input,
+      paperText: input.paperText.length > MAX_CHARS
+        ? input.paperText.slice(0, MAX_CHARS) + '\n\n[TEXT TRUNCATED FOR TOKEN LIMIT]'
+        : input.paperText,
+    };
+    let output;
+    try {
+      const response = await knowledgeGraphPrompt(truncatedInput);
+      output = response.output;
+    } catch (err) {
+      if (isValidationError(err)) {
+        console.warn('⚠️ [KG REPAIR] Schema validation failed. Attempting to recover...');
+        const rawText = extractRawText(err);
+        const rawOutput = rawText ? JSON.parse(rawText) : null;
+        if (rawOutput && (rawOutput.nodes || rawOutput.edges)) {
+           console.log('✅ [KG REPAIR] Recovered partial graph from raw text.');
+           output = rawOutput;
+        } else {
+           console.error('❌ [KG REPAIR] Fundamentally broken JSON. Returning empty graph.');
+           output = { nodes: [], edges: [] };
+        }
+      } else {
+        throw err;
+      }
+    }
     return output;
   }
 );

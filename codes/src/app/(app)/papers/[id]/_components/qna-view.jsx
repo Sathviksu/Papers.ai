@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useTransition, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,12 +15,23 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export function QnaView({ paperId }) {
   const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState([]);
+  const { user } = useUser();
+  const firestore = useFirestore();
   const [isPending, startTransition] = useTransition();
   const scrollAreaRef = useRef(null);
+
+  const messagesQuery = (user && firestore) ? query(
+    collection(firestore, `users/${user.uid}/papers/${paperId}/chat`),
+    orderBy('timestamp', 'asc')
+  ) : null;
+
+  const { data: messages = [] } = useCollection(messagesQuery);
 
   const exampleQuestions = [
     'What was the main contribution of this paper?',
@@ -29,16 +39,27 @@ export function QnaView({ paperId }) {
     'Explain the methodology in simple terms.',
   ];
 
-  const handleQuestionSubmit = (q) => {
-    if (!q.trim() || isPending) return;
+  const handleQuestionSubmit = async (q) => {
+    if (!q.trim() || isPending || !user || !firestore) return;
 
+    const chatRef = collection(firestore, `users/${user.uid}/papers/${paperId}/chat`);
     setQuestion('');
-    const newMessages = [...messages, { role: 'user', content: q }];
-    setMessages(newMessages);
+
+    // Save user message
+    await addDoc(chatRef, {
+      role: 'user',
+      content: q,
+      timestamp: serverTimestamp()
+    });
 
     startTransition(async () => {
       const answer = await askQuestion(paperId, q);
-      setMessages([...newMessages, { role: 'assistant', content: answer }]);
+      // Save bot answer
+      await addDoc(chatRef, {
+        role: 'assistant',
+        content: answer,
+        timestamp: serverTimestamp()
+      });
     });
   };
 

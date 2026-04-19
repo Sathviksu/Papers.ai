@@ -5,7 +5,13 @@ import { FirebaseClientProvider } from '@/firebase';
 export const metadata = {
   title: 'Papers.ai',
   description: 'Intelligent Research Paper Understanding Engine',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
+
 
 export default function RootLayout({ children }) {
   return (

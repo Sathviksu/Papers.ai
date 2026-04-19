@@ -1,75 +1,52 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for answering natural language questions about a research paper
- * using provided context (relevant text chunks).
- *
- * - askPaperQnA - A function that handles the Q&A process for a research paper.
- * - AskPaperQnAInput - The input type for the askPaperQnA function.
- * - AskPaperQnAOutput - The return type for the askPaperQnA function.
+ * @fileOverview A Genkit flow for answering natural language questions about a research paper.
+ * Uses direct generate() calls with graceful fallback to avoid schema validation loops.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, MODELS } from '@/ai/genkit';
 import { z } from 'genkit';
+import { isRateLimitError } from '@/ai/utils';
 
-// Input Schema for the Ask the Paper Q&A flow
 const AskPaperQnAInputSchema = z.object({
-  question: z
-    .string()
-    .describe('The natural language question about the paper.'),
-  context: z
-    .string()
-    .describe(
-      'Relevant chunks of text from the research paper, provided as context to answer the question.'
-    ),
+  question: z.string().describe('The natural language question about the paper.'),
+  context: z.string().describe('Relevant text from the research paper.'),
 });
 
-// Output Schema for the Ask the Paper Q&A flow
 const AskPaperQnAOutputSchema = z.object({
-  answer: z
-    .string()
-    .describe('The precise, contextually relevant answer to the question.'),
+  answer: z.string().describe('The precise, contextually relevant answer to the question.'),
 });
 
-// Defines the prompt for the Ask the Paper Q&A functionality.
-// This prompt instructs the LLM to answer a question based solely on provided context.
-const askPaperQnAPrompt = ai.definePrompt({
-  name: 'askPaperQnAPrompt',
-  input: { schema: AskPaperQnAInputSchema },
-  output: { schema: AskPaperQnAOutputSchema },
-  config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_NONE',
-      },
-    ],
-  },
-  prompt: `You are an expert research assistant. Your task is to answer the user's question based *only* on the provided context.
-If the answer cannot be found in the context, respond with "I cannot answer this question based on the provided information."
+/**
+ * Core Q&A logic: calls the model and returns a plain text answer.
+ * Uses generate() without an output schema so the model never confuses
+ * "JSON schema" instructions with the answer content.
+ */
+async function callModel(modelName, question, context) {
+  const prompt = `You are a concise, expert research assistant. Answer the following question using ONLY the provided paper context. Write a clear, natural language answer — do not output JSON or code.
 
-Question: {{{question}}}
+If the answer cannot be found in the context, say: "I don't have enough information to answer that from this paper."
 
-Context:
-{{{context}}}
+Question: ${question}
 
-Answer:`,
-});
+Paper Context:
+---
+${context}
+---
 
-// Defines the Genkit flow for the Ask the Paper Q&A feature.
-// It takes a question and relevant paper context as input, and uses the defined prompt
-// to generate an answer.
+Answer:`;
+
+  const response = await ai.generate({
+    model: modelName,
+    prompt,
+    config: { temperature: 0.3 },
+  });
+
+  const text = response.text?.trim();
+  if (!text) throw new Error('Empty response from model');
+  return text;
+}
+
 const askPaperQnAFlow = ai.defineFlow(
   {
     name: 'askPaperQnAFlow',
@@ -77,28 +54,55 @@ const askPaperQnAFlow = ai.defineFlow(
     outputSchema: AskPaperQnAOutputSchema,
   },
   async (input) => {
-    const { output } = await askPaperQnAPrompt(input);
-    return output;
+    const MAX_CONTEXT = 45_000;
+    const context = input.context.length > MAX_CONTEXT
+      ? input.context.slice(0, MAX_CONTEXT) + '\n\n[CONTEXT TRUNCATED FOR LENGTH]'
+      : input.context;
+
+    let answer;
+    try {
+      answer = await callModel(MODELS.fast, input.question, context);
+    } catch (primaryErr) {
+      console.warn('⚠️ [Q&A PRIMARY FAILED] Trying fallback model...', primaryErr?.message);
+      try {
+        answer = await callModel(MODELS.fallback, input.question, context);
+      } catch (fallbackErr) {
+        console.error('❌ [Q&A FALLBACK ALSO FAILED]', fallbackErr?.message);
+        throw primaryErr;
+      }
+    }
+
+    // Strip any residual JSON wrapping (e.g. model returns {"answer": "..."})
+    if (answer.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(answer);
+        if (parsed.answer && typeof parsed.answer === 'string') {
+          answer = parsed.answer;
+        }
+      } catch (_) { /* not JSON, use as-is */ }
+    }
+
+    return { answer };
   }
 );
 
-/**
- * Generates an answer to a natural language question about a research paper
- * using Retrieval Augmented Generation (RAG) principles. This function expects
- * pre-retrieved context relevant to the question.
- *
- * @param input An object containing the question and the relevant context from the paper.
- * @returns A promise that resolves to an object containing the AI-generated answer.
- */
-/**
- * Generates an answer to a natural language question about a research paper
- * using Retrieval Augmented Generation (RAG) principles. This function expects
- * pre-retrieved context relevant to the question.
- *
- * @param input An object containing the question and the relevant context from the paper.
- * @returns A promise that resolves to an object containing the AI-generated answer.
- */
-
 export async function askPaperQnA(input) {
-  return askPaperQnAFlow(input);
+  try {
+    return await askPaperQnAFlow(input);
+  } catch (err) {
+    if (isRateLimitError(err)) {
+      console.warn('⏳ [Q&A] Rate limit hit. Trying fallback model directly...');
+      const MAX_CONTEXT = 10_000;
+      const context = input.context.length > MAX_CONTEXT
+        ? input.context.slice(0, MAX_CONTEXT) + '\n\n[CONTEXT TRUNCATED]'
+        : input.context;
+      try {
+        const answer = await callModel(MODELS.fallback, input.question, context);
+        return { answer };
+      } catch (fallbackErr) {
+        console.error('❌ [Q&A RATE LIMIT FALLBACK FAILED]', fallbackErr);
+      }
+    }
+    throw err;
+  }
 }

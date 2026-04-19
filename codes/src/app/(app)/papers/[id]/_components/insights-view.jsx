@@ -27,28 +27,37 @@ function InsightSection({ title, content }) {
 }
 
 export function InsightsView({ insights }) {
+  const newSchema = insights?.papers?.[0];
+  
+  const researchProblem = newSchema?.coreQuestion || insights?.researchProblem || 'Data not ready';
+  const methodology = newSchema?.methodology || insights?.methodology || 'Data not ready';
+  const datasetsUsed = newSchema?.sampleOrScope ? [newSchema.sampleOrScope] : (insights?.datasetsUsed || []);
+  const algorithmsModels = newSchema?.concepts ? newSchema.concepts.filter(c => ['method', 'theory', 'model', 'algorithm'].includes(c.type?.toLowerCase())).map(c => c.label) : (insights?.algorithmsModels || []);
+  const evaluationMetrics = newSchema?.claims ? newSchema.claims.map(c => `[${Math.round(c.confidence*100)}%] ${c.text}`) : (insights?.evaluationMetrics || []);
+  const keyResults = newSchema?.conclusions || insights?.keyResults || [];
+
   return (
     <div className="grid gap-6">
       <InsightSection
-        title="Research Problem"
-        content={insights.researchProblem}
+        title="Research Problem / Core Question"
+        content={researchProblem}
       />
-      <InsightSection title="Methodology" content={insights.methodology} />
+      <InsightSection title="Methodology" content={methodology} />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <InsightSection title="Datasets Used" content={insights.datasetsUsed} />
+        <InsightSection title="Datasets / Scope Used" content={datasetsUsed} />
         <InsightSection
-          title="Algorithms & Models"
-          content={insights.algorithmsModels}
+          title="Algorithms / Concepts"
+          content={algorithmsModels}
         />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <InsightSection
-          title="Evaluation Metrics"
-          content={insights.evaluationMetrics}
+          title="Claims / Evaluation Metrics"
+          content={evaluationMetrics}
         />
-        <InsightSection title="Key Results" content={insights.keyResults} />
+        <InsightSection title="Key Results" content={keyResults} />
       </div>
     </div>
   );

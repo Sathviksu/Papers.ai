@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, collection, setDoc } from 'firebase/firestore';
-import { runSummarizePaper, runExtractInsights, runGenerateKnowledgeGraph } from '@/lib/actions';
+import { doc, collection, setDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { runExtractInsights, runAnalyzePaperFast } from '@/lib/actions';
+import { getCachedPaper, setCachedPaper } from '@/lib/paper-cache';
 import { Button } from '@/components/aurora/Button';
 import { Input } from '@/components/aurora/Input';
 import {
@@ -17,6 +18,8 @@ import {
   Sparkles,
   FileText,
   Clock,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 // ─── Document extraction via server API ───────────────────────────────────────
@@ -70,6 +73,7 @@ export default function UploadPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const [funFactIndex, setFunFactIndex] = useState(0);
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
 
   const { user } = useUser();
   const firestore = useFirestore();
@@ -134,28 +138,73 @@ export default function UploadPage() {
         processingStatus: 'processing',
       });
 
-      // Steps 2–3 — Extract insights
-      setCurrentStep(2);
-      const insightsRes = await runExtractInsights(textContent);
+      // ── Cache check ─────────────────────────────────────────
+      // If this exact paper was processed before, skip all AI calls.
+      const cached = getCachedPaper(textContent);
+      let insightsRes, summaryRes, kgRes;
+
+      if (cached) {
+        console.log('[Upload] Cache hit — skipping AI flows');
+        insightsRes = cached.insights;
+        summaryRes = cached.summary;
+        kgRes = cached.knowledgeGraph;
+        setCurrentStep(5); // Jump straight to final step
+      } else {
+        // Step 2–3 — Extract deep insights (70B model, ~8k tokens)
+        setCurrentStep(2);
+        insightsRes = await runExtractInsights(textContent);
+        setCurrentStep(3);
+
+        // --- DUPLICATE DETECTION ---
+        const existingPapersSnap = await getDocs(query(
+          collection(firestore, `users/${user.uid}/papers`),
+          orderBy('uploadDate', 'desc'),
+          limit(30)
+        ));
+        const incomingCits = insightsRes.papers?.[0]?.citations || [];
+        const incomingAuthors = insightsRes.papers?.[0]?.authors || [];
+
+        for (const doc of existingPapersSnap.docs) {
+          const p = doc.data();
+          if (p.id === paperId) continue;
+          
+          const sharedAuthors = (p.authors || []).filter(a => incomingAuthors.includes(a));
+          const pCitations = p.insights?.papers?.[0]?.citations || p.citations || [];
+          const sharedCits = pCitations.filter(c => incomingCits.some(ic => ic.ref === c.ref));
+
+          if (sharedAuthors.length >= 2 || sharedCits.length >= 3) {
+             setDuplicateWarning({
+               title: p.title,
+               authorCount: sharedAuthors.length,
+               citCount: sharedCits.length
+             });
+             // We don't stop processing, just warn at the end
+          }
+        }
+
+        // Step 4–5 — Summary + Knowledge Graph merged into one 8B call
+        setCurrentStep(4);
+        const fastRes = await runAnalyzePaperFast(textContent);
+        summaryRes = fastRes.summary;
+        kgRes = fastRes.knowledgeGraph;
+        setCurrentStep(5);
+
+        // Write to cache so same paper never costs tokens again
+        setCachedPaper(textContent, { insights: insightsRes, summary: summaryRes, knowledgeGraph: kgRes });
+      }
+
       const insId = doc(collection(firestore, 'mock')).id;
-      setCurrentStep(3);
       await setDoc(
         doc(firestore, `users/${user.uid}/papers/${paperId}/insights/${insId}`),
         { id: insId, paperId, userId: user.uid, ...insightsRes, extractedAt: new Date().toISOString() }
       );
 
-      // Step 4 — Knowledge graph
-      setCurrentStep(4);
-      const kgRes = await runGenerateKnowledgeGraph(textContent);
       const kgId = doc(collection(firestore, 'mock')).id;
       await setDoc(
         doc(firestore, `users/${user.uid}/papers/${paperId}/knowledgeGraphs/${kgId}`),
         { id: kgId, paperId, userId: user.uid, ...kgRes, generatedAt: new Date().toISOString() }
       );
 
-      // Step 5 — Summarise
-      setCurrentStep(5);
-      const summaryRes = await runSummarizePaper(textContent);
       const sumId = doc(collection(firestore, 'mock')).id;
       await setDoc(
         doc(firestore, `users/${user.uid}/papers/${paperId}/summaries/${sumId}`),
@@ -171,6 +220,7 @@ export default function UploadPage() {
           summaryId: sumId,
           insightsId: insId,
           knowledgeGraphId: kgId,
+          abstract: insightsRes.papers?.[0]?.abstract || textContent.substring(0, 300) + '...',
           summary: summaryRes,
           insights: insightsRes,
           knowledgeGraph: kgRes,
@@ -196,36 +246,36 @@ export default function UploadPage() {
   // ── Processing overlay ────────────────────────────────────────────────────
   if (isProcessing) {
     return (
-      <div className="fixed inset-0 z-[60] bg-aurora-bg flex flex-col items-center justify-center fade-in animate-in duration-500">
-        <div className="text-2xl font-extrabold font-heading bg-gradient-to-r from-aurora-blue to-aurora-violet bg-clip-text text-transparent tracking-tight absolute top-6 flex items-center gap-2">
+      <div className="fixed inset-0 z-[60] bg-aurora-bg flex flex-col items-center justify-between fade-in animate-in duration-500 overflow-y-auto pt-8 pb-8">
+        <div className="text-2xl font-extrabold font-heading bg-gradient-to-r from-aurora-blue to-aurora-violet bg-clip-text text-transparent tracking-tight flex items-center gap-2 shrink-0">
           <Sparkles className="text-aurora-violet h-5 w-5" /> Papers.ai
         </div>
 
-        <div className="max-w-3xl w-full px-6 text-center mt-[-10vh]">
-          <h1 className="text-2xl md:text-3xl font-heading font-extrabold text-aurora-text-high mb-12">
+        <div className="max-w-3xl w-full px-4 md:px-6 text-center z-10 flex flex-col items-center my-8 shrink-0">
+          <h1 className="text-xl md:text-3xl font-heading font-extrabold text-aurora-text-high mb-8 md:mb-12 line-clamp-2 md:line-clamp-none">
             Processing: {file ? file.name : 'URL Document'}
           </h1>
 
           {/* Spinner */}
-          <div className="relative flex justify-center items-center mb-16">
+          <div className="relative flex justify-center items-center mb-10 md:mb-16">
             <div className="absolute inset-0 bg-aurora-glow opacity-60 blur-3xl rounded-full" />
-            <div className="relative w-32 h-32 rounded-full flex items-center justify-center p-1 bg-gradient-to-tr from-[#E8ECFA] to-[#DDE3F8]">
+            <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center p-1 bg-gradient-to-tr from-[#E8ECFA] to-[#DDE3F8]">
               <div
-                className="absolute inset-0 rounded-full border-[4px] border-transparent border-t-aurora-blue border-r-aurora-cyan animate-spin"
+                className="absolute inset-0 rounded-full border-[3px] md:border-[4px] border-transparent border-t-aurora-blue border-r-aurora-cyan animate-spin"
                 style={{ animationDuration: '3s' }}
               />
               <div
-                className="absolute inset-2 rounded-full border-[4px] border-transparent border-b-aurora-violet border-l-aurora-rose animate-spin"
+                className="absolute inset-2 rounded-full border-[3px] md:border-[4px] border-transparent border-b-aurora-violet border-l-aurora-rose animate-spin"
                 style={{ animationDuration: '2s', animationDirection: 'reverse' }}
               />
               <div className="w-full h-full bg-white rounded-full flex items-center justify-center shadow-inner z-10">
-                <FileBox className="h-10 w-10 text-aurora-blue" />
+                <FileBox className="h-8 w-8 md:h-10 md:w-10 text-aurora-blue" />
               </div>
             </div>
           </div>
 
           {/* Step indicators */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-10 w-full">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 md:mb-10 w-full">
             {steps.map((step, index) => {
               const isDone = currentStep > index + 1;
               const isCurrent = currentStep === index + 1;
@@ -257,7 +307,7 @@ export default function UploadPage() {
                     )}
                   </div>
                   <span
-                    className={`text-xs font-semibold uppercase tracking-wider text-center ${
+                    className={`text-[10px] md:text-xs font-semibold uppercase tracking-wider text-center max-w-[120px] md:max-w-none break-words leading-tight ${
                       isCurrent || isDone ? 'text-aurora-text-high' : 'text-aurora-text-low'
                     }`}
                   >
@@ -269,10 +319,10 @@ export default function UploadPage() {
           </div>
 
           {/* Status text */}
-          <div className="mt-12 min-h-[80px]">
+          <div className="mt-8 md:mt-12 min-h-[60px] md:min-h-[80px]">
             {currentStep <= steps.length ? (
               <>
-                <h3 className="text-xl font-bold text-aurora-text-high flex items-center justify-center gap-2">
+                <h3 className="text-lg md:text-xl font-bold text-aurora-text-high flex items-center justify-center gap-2">
                   {steps[currentStep - 1]?.label ?? 'Initializing'}
                   <span className="flex items-end h-6">
                     <span className="animate-bounce">.</span>
@@ -280,32 +330,49 @@ export default function UploadPage() {
                     <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
                   </span>
                 </h3>
-                <p className="text-sm font-bold uppercase text-aurora-text-mid mt-2 opacity-60">
+                <p className="text-xs md:text-sm font-bold uppercase text-aurora-text-mid mt-2 opacity-60">
                   About {Math.max(5 - currentStep, 1) * 20} seconds left
                 </p>
               </>
             ) : (
-              <h3 className="text-2xl font-extrabold text-emerald-600 flex items-center justify-center gap-2">
+              <h3 className="text-xl md:text-2xl font-extrabold text-emerald-600 flex items-center justify-center gap-2">
                 Processing Complete! <CheckCircle2 className="w-6 h-6" />
               </h3>
             )}
           </div>
 
           {/* Fun fact */}
-          <div className="mt-8 px-6 py-4 bg-white rounded-2xl border border-aurora-border shadow-sm max-w-lg mx-auto">
+          <div className="mt-6 md:mt-8 px-6 py-4 bg-white rounded-2xl border border-aurora-border shadow-sm max-w-lg mx-auto">
             <p className="text-sm font-medium text-aurora-text-mid">{funFacts[funFactIndex]}</p>
           </div>
-
-          <div className="absolute bottom-8 left-0 right-0 text-center">
-            <Button
-              variant="ghost"
-              className="text-aurora-text-low hover:text-aurora-text-high hover:bg-black/5"
-              onClick={() => setIsProcessing(false)}
-            >
-              Cancel Processing
-            </Button>
-          </div>
         </div>
+
+        <div className="shrink-0 text-center w-full mb-8">
+          <Button
+            variant="ghost"
+            className="text-aurora-text-low hover:text-aurora-text-high hover:bg-black/5"
+            onClick={() => setIsProcessing(false)}
+          >
+            Cancel Processing
+          </Button>
+        </div>
+
+        {duplicateWarning && (
+          <div className="fixed bottom-10 inset-x-4 max-w-lg mx-auto bg-amber-50 border-2 border-amber-500 rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 duration-500 z-50">
+             <div className="flex items-start gap-4">
+                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+                <div className="flex-1">
+                   <h4 className="font-bold text-amber-900 mb-1">Potential duplicate detected!</h4>
+                   <p className="text-sm text-amber-800 leading-tight">
+                     This paper shares <span className="font-bold">{duplicateWarning.authorCount} authors</span> and <span className="font-bold">{duplicateWarning.citCount} citations</span> with <span className="italic font-bold">"{duplicateWarning.title}"</span> already in your library.
+                   </p>
+                </div>
+                <button onClick={() => setDuplicateWarning(null)} className="text-amber-600 hover:bg-amber-100 p-1 rounded-full">
+                  <X className="w-4 h-4" />
+                </button>
+             </div>
+          </div>
+        )}
       </div>
     );
   }

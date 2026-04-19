@@ -1,95 +1,136 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for summarizing research papers.
- *
- * - summarizePaper - A function that generates summaries, key contributions, limitations, and future research directions from a paper's text.
- * - SummarizePaperInput - The input type for the summarizePaper function.
- * - SummarizePaperOutput - The return type for the summarizePaper function.
+ * @fileOverview A Genkit flow for summarizing research papers into 3 highly structured audience-specific formats.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
-
-const SectionSummarySchema = z.object({
-  title: z
-    .string()
-    .describe(
-      'The title of the section (e.g., Abstract, Introduction, Methodology, Results, Discussion, Conclusion).'
-    ),
-  summary: z
-    .string()
-    .describe('A concise summary of the content of this section.'),
-});
+import { ai, MODELS } from '@/ai/genkit';
+import { z } from 'genkit';
+import { extractRawText, isRateLimitError, isValidationError } from '@/ai/utils';
 
 const SummarizePaperInputSchema = z.object({
-  paperText: z
-    .string()
-    .describe('The full text content of the research paper.'),
+  paperText: z.string().describe('The full text content of the research paper.'),
 });
 
 const SummarizePaperOutputSchema = z.object({
-  tldr: z
-    .string()
-    .describe('A very short, "Too Long; Didn\'t Read" summary of the paper.'),
-  sectionSummaries: z
-    .array(SectionSummarySchema)
-    .describe('An array of summaries for each detected section of the paper.'),
-  keyContributions: z
-    .array(z.string())
-    .describe('A list of the main contributions of the research paper.'),
-  limitations: z
-    .array(z.string())
-    .describe(
-      'A list of the limitations of the research discussed in the paper.'
-    ),
-  futureResearchDirections: z
-    .array(z.string())
-    .describe('A list of future research directions suggested by the authors.'),
+  expertText: z.string().describe('Highly technical summary tailored for domain experts.'),
+  practitionerText: z.string().describe('Practical summary tailored for industry professionals.'),
+  beginnerText: z.string().describe('Simple, analogy-driven summary tailored for newcomers.'),
 });
 
 export async function summarizePaper(input) {
-  return summarizePaperFlow(input);
+  try {
+    return await summarizePaperFlow(input);
+  } catch (err) {
+    if (isRateLimitError(err) || isValidationError(err)) {
+      console.warn('⏳ [SUMMARY FALLBACK] Retrying with secondary model...');
+      try {
+        const fallbackPrompt = ai.definePrompt({
+          name: 'summarizePaperFallback',
+          model: MODELS.fallback,
+          input: { schema: SummarizePaperInputSchema },
+          output: { schema: SummarizePaperOutputSchema },
+          prompt: summarizePaperPrompt.prompt,
+        });
+        const resp = await fallbackPrompt(input);
+        return resp.output;
+      } catch (fErr) {
+        console.error('❌ [SUMMARY FALLBACK FAILED]', fErr);
+        return { expertText: '', practitionerText: '', beginnerText: '' };
+      }
+    }
+    console.error('❌ [summarizePaper] Flow failed:', err);
+    return { expertText: '', practitionerText: '', beginnerText: '' };
+  }
 }
 
 const summarizePaperPrompt = ai.definePrompt({
   name: 'summarizePaperPrompt',
   input: { schema: SummarizePaperInputSchema },
   output: { schema: SummarizePaperOutputSchema },
-  config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_NONE',
-      },
-    ],
-  },
-  prompt: `You are an expert, highly sophisticated academic research assistant. 
-Your task is to deeply analyze the provided document text and generate an extremely useful, high-quality, and comprehensive structured summary.
+  config: { temperature: 0.3 },
+  prompt: `You are an elite academic research assistant. Extract and format a comprehensive summary of the provided research paper into three distinct variations.
 
-CRITICAL INSTRUCTIONS:
-1. Examine the provided text. If the text appears to be completely invalid, explicitly garbled, or just a collection of random UI/navigation words (e.g., "Summary Extraction Visualization Q&A"), do NOT attempt to summarize it as a paper. Instead, set the 'tldr' to: "The uploaded document does not appear to contain readable research paper content. Please ensure you uploaded a valid, text-searchable research paper or document.", and leave the arrays empty or put "N/A".
-2. If the text IS a valid document/paper, your summary must be highly educational, well-formatted, and deeply useful to a researcher. Do not just echo back what was written; synthesize the core meaning.
+YOU MUST STRICTLY FOLLOW THESE 3 FORMATS EXACTLY AS SHOWN. USE LINE BREAKS (\\n) AND SPACING EXACTLY AS DEPICTED. DO NOT USE MARKDOWN HEADERS LIKE ###, JUST USE THE EXACT TEXT HEADINGS PROVIDED BELOW.
 
-Generate the following structured information:
-- **tldr**: A highly insightful, 2-3 sentence "Too Long; Didn't Read" summary. It must unequivocally state the core premise, main finding, and why it matters to a user.
-- **sectionSummaries**: An array of summaries for the logical sections of the paper. Use clear titles (e.g., "Background", "Methodology", "Core Findings", "Conclusion"). Make the 'summary' very descriptive.
-- **keyContributions**: A list of the main innovations, novel methods, or primary findings.
-- **limitations**: A list of limitations, caveats, or boundaries of the research.
-- **futureResearchDirections**: A list of actionable future work suggested by the text.
+FORMAT 1 (expertText):
+[Title] [DOI if found] [Conference] [Year] [Pages] [References Count]
 
-Present this information in a structured JSON format according to the output schema.
+Abstract (technical, full jargon preserved)
+  [2-3 sentences using domain-specific terminology exactly as the authors used it. No simplification.]
+
+Section-by-section technical breakdown
+  Introduction     → [Research gap, hypothesis, prior art referenced]
+  Related Work     → [Which specific papers, what they lack]
+  Methodology      → [Architecture, algorithms, parameters, datasets]
+  Results          → [Exact metrics, benchmarks, statistical significance]
+  Conclusion       → [Claims made, reproducibility, future directions]
+
+Key contributions (precise & falsifiable)
+  1. [Specific technical claim with measurable outcome]
+  2. [Novel architecture/method with what it improves over baseline]
+  3. [Experimental finding with exact numbers]
+
+Limitations flagged by authors
+  · [Limitation 1]
+  · [Limitation 2]
+
+Open research questions
+  · [Question 1]
+
+
+FORMAT 2 (practitionerText):
+[Title] [Conference] [Year]
+
+What this paper is about
+  [Clear enough for someone who knows the domain but isn't a researcher in it. 2-3 sentences.]
+
+Section highlights
+  Introduction     → [Problem being solved and why it matters now]
+  Related Work     → [What exists today and what's missing]
+  Methodology      → [How the proposed system works at a high level]
+  Results          → [Key outcomes and real-world case studies]
+  Conclusion       → [What to take away and what comes next]
+
+Key contributions (actionable)
+  1. [What was built and what problem it solves]
+  2. [Real-world validation or case study]
+  3. [Practical benefit for the industry]
+
+Technologies used
+  · [Tech 1] · [Tech 2] · [Tech 3]
+
+Potential use in practice
+  · [How a company could apply this today]
+
+
+FORMAT 3 (beginnerText):
+[Title] [Year]
+
+In plain English
+  [Explain it like the reader has no background. Use analogies. Avoid all technical terms. 2-3 sentences.]
+
+What each part of the paper says
+  Introduction     → "The paper starts by explaining the problem..."
+  The idea         → "Their solution works like this..."
+  Did it work?     → "They tested it and found..."
+  Takeaway         → "The big conclusion is..."
+
+The 3 most important things to know
+  1. [Simple one-liner]
+  2. [Simple one-liner]
+  3. [Simple one-liner]
+
+Words you might not know
+  [Jargon 1] → [Simple explanation]
+  [Jargon 2] → [Simple explanation]
+  [Jargon 3] → [Simple explanation]
+
+Is this paper worth reading?
+  Complexity: [Rate out of 5 using ● and ○, e.g. ●●●○○]
+  "[1 sentence beginner-friendly verdict]"
+
+
+Return these 3 string blocks precisely matching the templates above in the JSON output.
 
 Document Text:
 ---
@@ -104,7 +145,31 @@ const summarizePaperFlow = ai.defineFlow(
     outputSchema: SummarizePaperOutputSchema,
   },
   async (input) => {
-    const { output } = await summarizePaperPrompt(input);
+    const MAX_CHARS = 35_000;
+    const truncatedInput = {
+      ...input,
+      paperText: input.paperText.length > MAX_CHARS
+        ? input.paperText.slice(0, MAX_CHARS) + '\n\n[TEXT TRUNCATED]'
+        : input.paperText,
+    };
+    let output;
+    try {
+      const response = await summarizePaperPrompt(truncatedInput);
+      output = response.output;
+    } catch (err) {
+      if (isValidationError(err)) {
+        console.warn('⚠️ [SUMMARY REPAIR] Attempting to recover...');
+        const rawText = extractRawText(err);
+        const rawOutput = rawText ? JSON.parse(rawText) : null;
+        if (rawOutput && (rawOutput.expertText || rawOutput.practitionerText)) {
+           output = rawOutput;
+        } else {
+           throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
     return output;
   }
 );
