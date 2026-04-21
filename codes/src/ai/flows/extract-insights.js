@@ -56,6 +56,25 @@ const ExtractInsightsOutputSchema = z.object({
       evidence: z.string().nullable().optional().describe('Quote or specific finding supporting the claim'),
     })).nullable().optional(),
     topics: z.array(z.string()).nullable().optional(),
+    prismaFlow: z.object({
+      identification: z.object({
+        databaseRecords: z.number().optional().describe('Number of records identified through database searching'),
+        otherRecords: z.number().optional().describe('Number of additional records identified through other sources'),
+      }).optional(),
+      screening: z.object({
+        recordsScreened: z.number().optional().describe('Number of records screened'),
+        recordsExcluded: z.number().optional().describe('Number of records excluded'),
+      }).optional(),
+      eligibility: z.object({
+        fullTextAssessed: z.number().optional().describe('Number of full-text articles assessed for eligibility'),
+        fullTextExcluded: z.number().optional().describe('Number of full-text articles excluded'),
+        exclusionReasons: z.array(z.string()).optional().describe('Reasons for exclusion at eligibility stage'),
+      }).optional(),
+      included: z.object({
+        qualitative: z.number().optional().describe('Number of studies included in qualitative synthesis'),
+        quantitative: z.number().optional().describe('Number of studies included in quantitative synthesis (meta-analysis)'),
+      }).optional(),
+    }).nullable().optional(),
   })),
 });
 
@@ -113,7 +132,13 @@ const extractInsightsPrompt = ai.definePrompt({
         "evidence": "Results show a 15% increase in accuracy as documented in Table 2."
       }
     ],
-    "topics": ["Artificial Intelligence", "Computer Vision"]
+    "topics": ["Artificial Intelligence", "Computer Vision"],
+    "prismaFlow": {
+      "identification": { "databaseRecords": 1250, "otherRecords": 25 },
+      "screening": { "recordsScreened": 980, "recordsExcluded": 850 },
+      "eligibility": { "fullTextAssessed": 130, "fullTextExcluded": 80, "exclusionReasons": ["Wrong population", "Insufficient data"] },
+      "included": { "qualitative": 50, "quantitative": 12 }
+    }
   }]
 }
 
@@ -123,6 +148,7 @@ IMPORTANT:
 - visualizations: Extract actual quantitative results as chart data
 - citations: Extract references made by the paper, up to 15 key citations.
 - summaries: Write substantive summaries, not generic placeholders
+- prismaFlow: ONLY if this paper is a Systematic Literature Review (SLR) or Meta-analysis, extract the PRISMA flow numbers. Omit this field entirely for standard research papers.
 - Return ONLY valid JSON, no other text
 
 Paper text:

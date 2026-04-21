@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -89,6 +90,14 @@ export default function DashboardPage() {
     );
   }, [user, firestore]);
 
+  const [greeting, setGreeting] = useState('Welcome');
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Good morning');
+    else if (hour < 17) setGreeting('Good afternoon');
+    else setGreeting('Good evening');
+  }, []);
+
   const { data: papers, isLoading } = useCollection(papersQuery);
 
   const firstName = user?.displayName ? user.displayName.split(' ')[0] : 'Researcher';
@@ -98,7 +107,7 @@ export default function DashboardPage() {
   ).length;
   const summariesGenerated = displayPapers.filter((p) => p.summaryId).length;
   
-  const activities = getRecentActivities(displayPapers).slice(0, 6);
+  const activities = getRecentActivities(displayPapers).slice(0, 4);
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
@@ -106,7 +115,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-2">
         <div>
           <h1 className="text-3xl font-extrabold font-heading text-aurora-text-high tracking-tight">
-            Good morning, {firstName} <span className="inline-block origin-bottom-right hover:animate-wave cursor-default">👋</span>
+            {greeting}, {firstName} <span className="inline-block origin-bottom-right hover:animate-wave cursor-default">👋</span>
           </h1>
           <p className="text-aurora-text-low mt-2 font-medium">
             You have <span className="text-aurora-blue font-semibold">{papersThisWeek} papers</span> uploaded this week

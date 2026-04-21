@@ -6,7 +6,7 @@ import { BarChart2, Sparkles } from 'lucide-react';
 // ── DATA BUILDER ─────────────────────────────────────────────────────────────
 function buildPaperJson(paper, insights) {
   const ex = insights?.papers?.[0] || {};
-  let visuals = ex.visualizations || [];
+  let visuals = ex.visualizations ? [...ex.visualizations] : [];
 
   // Fallback: If AI didn't generate any visuals, aggressive synthesis
   if (visuals.length === 0) {
@@ -58,11 +58,22 @@ function buildPaperJson(paper, insights) {
     }
   }
 
+  // Detect PRISMA Flow (for SLRs) - only show if identification numbers are found
+  if (ex.prismaFlow && (ex.prismaFlow.identification?.databaseRecords || ex.prismaFlow.identification?.otherRecords)) {
+    visuals.unshift({
+      title: 'PRISMA Flow Diagram',
+      subtitle: 'Systematic literature review screening process',
+      chartType: 'prisma',
+      data: ex.prismaFlow
+    });
+  }
+
   // Detect Paper Profile (for the badge)
   let profile = 'General Research';
   const hasClaims = (ex.claims?.length || 0) >= 3;
   const hasMethodology = !!ex.methodology;
-  if (hasClaims && hasMethodology) profile = 'Empirical / Experimental';
+  if (ex.prismaFlow) profile = 'Survey / Systematic Review';
+  else if (hasClaims && hasMethodology) profile = 'Empirical / Experimental';
   else if ((ex.concepts?.length || 0) > 10) profile = 'Survey / Systematic Review';
   else if (ex.hypothesis) profile = 'Theoretical / Foundational';
 
@@ -75,6 +86,50 @@ function generateHtml(pj) {
   const BG_COLORS = ['rgba(99,102,241,0.1)', 'rgba(16,185,129,0.1)', 'rgba(245,158,11,0.1)'];
 
   const chartCards = pj.visuals.map((v, i) => {
+    if (v.chartType === 'prisma') {
+      const p = v.data;
+      return `
+      <div class="card">
+        <p class="chart-title">${v.title}</p>
+        <p class="chart-sub">${v.subtitle}</p>
+        <div class="prisma-container">
+          <div class="prisma-section">
+            <div class="prisma-header">Identification</div>
+            <div class="prisma-row">
+              <div class="prisma-box">Records identified through database searching<br><b>n = ${p.identification?.databaseRecords || 0}</b></div>
+              <div class="prisma-box">Additional records identified through other sources<br><b>n = ${p.identification?.otherRecords || 0}</b></div>
+            </div>
+          </div>
+          <div class="prisma-arrow">↓</div>
+          <div class="prisma-section">
+            <div class="prisma-header">Screening</div>
+            <div class="prisma-row">
+              <div class="prisma-box">Records after duplicates removed<br><b>n = ${p.screening?.recordsScreened || 0}</b></div>
+              <div class="prisma-box secondary">Records excluded<br><b>n = ${p.screening?.recordsExcluded || 0}</b></div>
+            </div>
+          </div>
+          <div class="prisma-arrow">↓</div>
+          <div class="prisma-section">
+            <div class="prisma-header">Eligibility</div>
+            <div class="prisma-row">
+              <div class="prisma-box">Full-text articles assessed for eligibility<br><b>n = ${p.eligibility?.fullTextAssessed || 0}</b></div>
+              <div class="prisma-box secondary">Full-text articles excluded<br><b>n = ${p.eligibility?.fullTextExcluded || 0}</b>
+                ${p.eligibility?.exclusionReasons ? `<div style="font-size:9px;margin-top:4px;opacity:0.8;">Reasons: ${p.eligibility.exclusionReasons.join(', ')}</div>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="prisma-arrow">↓</div>
+          <div class="prisma-section">
+            <div class="prisma-header">Included</div>
+            <div class="prisma-row">
+              <div class="prisma-box highlight">Studies included in qualitative synthesis<br><b>n = ${p.included?.qualitative || 0}</b></div>
+              <div class="prisma-box highlight">Studies included in quantitative synthesis<br><b>n = ${p.included?.quantitative || 0}</b></div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+
     // Dynamic height based on labels for bar charts
     const isHorizontal = v.chartType === 'horizontal-bar';
     const height = isHorizontal ? (v.labels.length * 40 + 80) : 300;
@@ -90,6 +145,7 @@ function generateHtml(pj) {
   }).join('');
 
   const chartScripts = pj.visuals.map((v, i) => {
+    if (v.chartType === 'prisma') return '';
     const config = {
       type: v.chartType.replace('horizontal-bar', 'bar').replace('grouped-bar', 'bar'),
       data: {
@@ -155,6 +211,17 @@ function generateHtml(pj) {
   .chart-title{font-size:14px;font-weight:700;color:#1e293b;margin:0 0 4px;}
   .chart-sub{font-size:11px;color:#64748b;margin:0 0 16px;line-height:1.4;}
   .badge{display:inline-block;padding:4px 12px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;background:#f1f5f9;color:#475569;margin-bottom:16px;letter-spacing:0.5px;border:0.5px solid #e2e8f0;}
+  
+  /* PRISMA Styles */
+  .prisma-container{display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0;}
+  .prisma-section{width:100%;max-width:500px;display:flex;flex-direction:column;gap:8px;}
+  .prisma-header{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;text-align:center;}
+  .prisma-row{display:flex;gap:12px;justify-content:center;}
+  .prisma-box{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:11px;color:#334155;text-align:center;line-height:1.4;}
+  .prisma-box b{display:block;font-size:13px;color:#6366f1;margin-top:4px;}
+  .prisma-box.secondary{background:#fff;border-style:dashed;}
+  .prisma-box.highlight{background:#eef2ff;border-color:#c7d2fe;font-weight:600;}
+  .prisma-arrow{color:#cbd5e1;font-size:20px;font-weight:bold;}
 </style>
 
 <div style="display:flex;justify-content:center;">
@@ -165,15 +232,13 @@ ${chartCards}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-window.onload = function() {
   if (typeof Chart === 'undefined') {
      document.body.innerHTML += '<p style="color:red;text-align:center;">Failed to load charting library. Please check your internet connection.</p>';
-     return;
+  } else {
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    Chart.defaults.color = '#64748b';
+    ${chartScripts}
   }
-  Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
-  Chart.defaults.color = '#64748b';
-  ${chartScripts}
-};
 </script>`;
 }
 

@@ -171,7 +171,9 @@ export default function ExportPage() {
     const expertBreakdown = resolvedSummary?.expert?.breakdown || {};
     const highlightSource = Object.keys(practitionerHighlights).length > 0 ? practitionerHighlights : expertBreakdown;
     const highlights = Object.keys(highlightSource).length > 0
-      ? Object.entries(highlightSource).map(([section, text]) => ({ section, highlight: text || '' }))
+      ? Object.entries(highlightSource)
+          .filter(([, text]) => text && String(text).trim().length > 0)
+          .map(([section, text]) => ({ section, highlight: String(text) }))
       : (newRef?.summaries?.sectionHighlights || resolvedInsights?.summaries?.sectionHighlights || []);
 
     // ── Extra summary fields ──
@@ -190,20 +192,31 @@ export default function ExportPage() {
       [];
 
     // ── Concepts / entities ──
-    let concepts = newRef?.concepts || [];
-    if (!concepts.length) {
-      const algos = newRef?.concepts?.filter(c =>
-        ['method','theory','model','algorithm','system','architecture','framework','technique'].includes(c.type?.toLowerCase())
-      ) || [];
-      if (!concepts.length && resolvedInsights?.algorithmsModels?.length) {
-        concepts = resolvedInsights.algorithmsModels.map(l => ({ label: l, type: 'Algorithm/Model', weight: 1 }));
-      }
+    // Primary source: KG nodes (produced by analyze-paper-fast)
+    let concepts = [];
+    if (resolvedKG?.nodes?.length) {
+      concepts = resolvedKG.nodes.map(n => ({
+        label: n.label || n.id,
+        type: n.type || 'Concept',
+        weight: 1,
+        id: n.id,
+      }));
     }
-    // Also pull in datasets and evaluation metrics as typed entities
-    const datasetsArr = newRef?.sampleOrScope ? [{ label: newRef.sampleOrScope, type: 'Dataset', weight: 0.8 }]
-      : (resolvedInsights?.datasetsUsed || []).map(d => ({ label: d, type: 'Dataset', weight: 0.8 }));
-    const metricsArr = (resolvedInsights?.evaluationMetrics || []).map(m => ({ label: typeof m === 'string' ? m : m.text, type: 'Metric', weight: 0.7 }));
-    if (!concepts.length) concepts = [...datasetsArr, ...metricsArr];
+    // Fallback 1: old ResearchEngine insights schema
+    if (!concepts.length && newRef?.concepts?.length) {
+      concepts = newRef.concepts;
+    }
+    // Fallback 2: algorithmsModels from insights
+    if (!concepts.length && resolvedInsights?.algorithmsModels?.length) {
+      concepts = resolvedInsights.algorithmsModels.map(l => ({ label: l, type: 'Algorithm/Model', weight: 1 }));
+    }
+    // Fallback 3: datasets + evaluation metrics
+    if (!concepts.length) {
+      const datasetsArr = newRef?.sampleOrScope ? [{ label: newRef.sampleOrScope, type: 'Dataset', weight: 0.8 }]
+        : (resolvedInsights?.datasetsUsed || []).map(d => ({ label: d, type: 'Dataset', weight: 0.8 }));
+      const metricsArr = (resolvedInsights?.evaluationMetrics || []).map(m => ({ label: typeof m === 'string' ? m : m.text, type: 'Metric', weight: 0.7 }));
+      concepts = [...datasetsArr, ...metricsArr];
+    }
 
     // ── Results rows ──
     const resultsRows = [];
@@ -232,13 +245,21 @@ export default function ExportPage() {
     }
 
     // ── Knowledge graph edges ──
-    const graphEdges =
-      newRef?.links ||
-      resolvedKG?.edges?.map(e => ({ from: e.source || e.from, relation: e.label || e.relation || 'relates to', to: e.target || e.to })) ||
-      [];
+    // Primary: KG sub-collection edges (produced by analyze-paper-fast)
+    let graphEdges = [];
+    if (resolvedKG?.edges?.length) {
+      graphEdges = resolvedKG.edges.map(e => ({
+        from: e.source || e.from || '',
+        relation: e.label || e.relation || 'relates to',
+        to: e.target || e.to || '',
+      })).filter(e => e.from && e.to);
+    } else if (newRef?.links?.length) {
+      // Fallback: old ResearchEngine schema
+      graphEdges = newRef.links;
+    }
 
     // ── Graph nodes (for JSON export) ──
-    const graphNodes = resolvedKG?.nodes || concepts.map(c => ({ id: c.id || c.label, type: c.type, label: c.label }));
+    const graphNodes = (resolvedKG?.nodes?.length ? resolvedKG.nodes : concepts.map(c => ({ id: c.id || c.label, type: c.type, label: c.label })));
 
     // ── Claims ──
     const claims =

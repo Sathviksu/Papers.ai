@@ -202,40 +202,43 @@ export default function PaperDetailPage() {
   const renderExpertSummary = (expert) => {
     if (!expert) return null;
     return (
-      <div className="flex flex-col gap-6 w-full text-base">
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Abstract</h4>
-          <p className="text-aurora-text-mid leading-relaxed">{expert.abstract}</p>
-        </div>
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Section-by-section breakdown</h4>
-          <ul className="space-y-2">
-            <li><strong className="text-aurora-blue w-32 inline-block">Introduction</strong> → {expert.breakdown?.introduction}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Related Work</strong> → {expert.breakdown?.relatedWork}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Methodology</strong> → {expert.breakdown?.methodology}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Results</strong> → {expert.breakdown?.results}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Conclusion</strong> → {expert.breakdown?.conclusion}</li>
+      <div className="flex flex-col gap-12 w-full text-base">
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Abstract</h4>
+          <p className="text-aurora-text-mid leading-relaxed text-lg font-medium">{expert.abstract}</p>
+        </section>
+
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Section-by-section breakdown</h4>
+          <ul className="space-y-6">
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Introduction</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.introduction}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Related Work</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.relatedWork}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Methodology</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.methodology}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Results</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.results}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Conclusion</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.conclusion}</span></li>
           </ul>
-        </div>
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Key contributions (precise & falsifiable)</h4>
-          <ul className="list-decimal list-inside space-y-1 text-aurora-text-mid">
+        </section>
+
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Key contributions (precise & falsifiable)</h4>
+          <ul className="list-decimal list-inside space-y-3 text-aurora-text-mid leading-relaxed">
             {expert.contributions?.map((c, i) => <li key={i}>{c}</li>)}
           </ul>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Limitations</h4>
-            <ul className="list-disc list-inside space-y-1 text-aurora-text-mid">
+        </section>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <section>
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Limitations</h4>
+            <ul className="list-disc list-inside space-y-2 text-aurora-text-mid leading-relaxed">
               {expert.limitations?.map((l, i) => <li key={i}>{l}</li>)}
             </ul>
-          </div>
-          <div>
-            <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Open questions</h4>
-            <ul className="list-disc list-inside space-y-1 text-aurora-text-mid">
+          </section>
+          <section>
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Open questions</h4>
+            <ul className="list-disc list-inside space-y-2 text-aurora-text-mid leading-relaxed">
               {expert.openQuestions?.map((q, i) => <li key={i}>{q}</li>)}
             </ul>
-          </div>
+          </section>
         </div>
       </div>
     );
@@ -244,40 +247,43 @@ export default function PaperDetailPage() {
   const renderPractitionerSummary = (practitioner) => {
     if (!practitioner) return null;
     return (
-      <div className="flex flex-col gap-6 w-full text-base">
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">What this paper is about</h4>
-          <p className="text-aurora-text-mid leading-relaxed">{practitioner.whatItsAbout}</p>
-        </div>
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Section highlights</h4>
-          <ul className="space-y-2">
-            <li><strong className="text-aurora-blue w-32 inline-block">Introduction</strong> → {practitioner.highlights?.introduction}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Related Work</strong> → {practitioner.highlights?.relatedWork}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Methodology</strong> → {practitioner.highlights?.methodology}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Results</strong> → {practitioner.highlights?.results}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Conclusion</strong> → {practitioner.highlights?.conclusion}</li>
+      <div className="flex flex-col gap-12 w-full text-base">
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">What this paper is about</h4>
+          <p className="text-aurora-text-mid leading-relaxed text-lg font-medium">{practitioner.whatItsAbout}</p>
+        </section>
+
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Section highlights</h4>
+          <ul className="space-y-6">
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Introduction</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.introduction}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Related Work</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.relatedWork}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Methodology</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.methodology}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Results</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.results}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Conclusion</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.conclusion}</span></li>
           </ul>
-        </div>
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Key contributions (actionable)</h4>
-          <ul className="list-decimal list-inside space-y-1 text-aurora-text-mid">
+        </section>
+
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Key contributions (actionable)</h4>
+          <ul className="list-decimal list-inside space-y-3 text-aurora-text-mid leading-relaxed">
             {practitioner.actionableContributions?.map((c, i) => <li key={i}>{c}</li>)}
           </ul>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-             <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Technologies used</h4>
-             <div className="flex flex-wrap gap-2">
-               {practitioner.technologies?.map((tech, i) => <Badge variant="outline" key={i}>{tech}</Badge>)}
+        </section>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-left">
+          <section>
+             <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Technologies used</h4>
+             <div className="flex flex-wrap gap-3">
+               {practitioner.technologies?.map((tech, i) => <Badge variant="outline" key={i} className="px-3 py-1 border-aurora-blue/20 text-aurora-blue font-bold">{tech}</Badge>)}
              </div>
-          </div>
-          <div>
-            <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Potential use in practice</h4>
-            <ul className="list-disc list-inside space-y-1 text-aurora-text-mid">
+          </section>
+          <section>
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Potential use in practice</h4>
+            <ul className="list-disc list-inside space-y-2 text-aurora-text-mid leading-relaxed">
               {practitioner.useInPractice?.map((use, i) => <li key={i}>{use}</li>)}
             </ul>
-          </div>
+          </section>
         </div>
       </div>
     );
@@ -286,42 +292,48 @@ export default function PaperDetailPage() {
   const renderBeginnerSummary = (beginner) => {
     if (!beginner) return null;
     return (
-      <div className="flex flex-col gap-6 w-full text-base">
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">In plain English</h4>
-          <p className="text-aurora-text-mid leading-relaxed">{beginner.plainEnglish}</p>
-        </div>
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">What each part of the paper says</h4>
-          <ul className="space-y-2">
-            <li><strong className="text-aurora-blue w-32 inline-block">Introduction</strong> → {beginner.parts?.introduction}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">The Idea</strong> → {beginner.parts?.theIdea}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Did it work?</strong> → {beginner.parts?.didItWork}</li>
-            <li><strong className="text-aurora-blue w-32 inline-block">Takeaway</strong> → {beginner.parts?.takeaway}</li>
+      <div className="flex flex-col gap-12 w-full text-base">
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">In plain English</h4>
+          <p className="text-aurora-text-mid leading-relaxed text-lg font-medium">{beginner.plainEnglish}</p>
+        </section>
+
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">What each part of the paper says</h4>
+          <ul className="space-y-6">
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Introduction</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.introduction}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">The Idea</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.theIdea}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Did it work?</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.didItWork}</span></li>
+            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Takeaway</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.takeaway}</span></li>
           </ul>
-        </div>
-        <div>
-          <h4 className="font-bold text-aurora-text-high mb-2 font-heading">The 3 most important things to know</h4>
-          <ul className="list-decimal list-inside space-y-1 text-aurora-text-mid">
+        </section>
+
+        <section className="border-b border-slate-100 pb-10">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">The 3 most important things to know</h4>
+          <ul className="list-decimal list-inside space-y-3 text-aurora-text-mid leading-relaxed">
             {beginner.importantThings?.map((thing, i) => <li key={i}>{thing}</li>)}
           </ul>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-             <h4 className="font-bold text-aurora-text-high mb-2 font-heading">Words you might not know</h4>
-             <ul className="space-y-2 text-sm text-aurora-text-mid">
+        </section>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-left">
+          <section>
+             <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Words you might not know</h4>
+             <ul className="space-y-4 text-sm text-aurora-text-mid">
                {beginner.jargon?.map((j, i) => (
-                 <li key={i}><strong className="text-aurora-blue mr-1">{j.term}</strong> → {j.simpleExplanation}</li>
+                 <li key={i} className="flex"><strong className="text-aurora-blue mr-1 shrink-0 font-bold">{j.term}</strong><span className="shrink-0 mr-2 text-aurora-text-low">→</span><span className="flex-1 leading-relaxed">{j.simpleExplanation}</span></li>
                ))}
              </ul>
-          </div>
-          <div className="bg-aurora-surface-1 p-4 border border-aurora-border rounded-xl">
-            <h4 className="font-bold text-aurora-text-high mb-2 font-heading text-lg">Verdict</h4>
-            <p className="text-sm font-bold text-aurora-text-mid mb-2">
-               Complexity: {'●'.repeat(beginner.complexityRating || 3)}{'○'.repeat(5 - (beginner.complexityRating || 3))}
-            </p>
-            <p className="text-aurora-text-high italic">"{beginner.verdict}"</p>
-          </div>
+          </section>
+          <section className="bg-aurora-surface-1 p-8 border border-aurora-border rounded-3xl">
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Verdict</h4>
+            <div className="flex items-center gap-2 mb-4">
+               {Array.from({ length: 5 }).map((_, i) => (
+                 <div key={i} className={`w-2.5 h-2.5 rounded-full ${i < (beginner.complexityRating || 3) ? 'bg-aurora-violet' : 'bg-aurora-border'}`} />
+               ))}
+               <span className="text-[10px] font-black text-aurora-text-low uppercase ml-2 tracking-widest leading-none">Complexity</span>
+            </div>
+            <p className="text-aurora-text-high italic font-medium text-lg leading-relaxed">"{beginner.verdict}"</p>
+          </section>
         </div>
       </div>
     );
