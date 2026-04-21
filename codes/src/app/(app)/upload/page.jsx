@@ -184,9 +184,89 @@ export default function UploadPage() {
 
         // Step 4–5 — Summary + Knowledge Graph merged into one 8B call
         setCurrentStep(4);
-        const fastRes = await runAnalyzePaperFast(textContent);
-        summaryRes = fastRes.summary;
-        kgRes = fastRes.knowledgeGraph;
+        try {
+          const fastRes = await runAnalyzePaperFast(textContent);
+          summaryRes = fastRes.summary || {};
+          kgRes = fastRes.knowledgeGraph || { nodes: [], edges: [] };
+        } catch (fastErr) {
+          console.error('[FAST ANALYZE FAILED]', fastErr.message || fastErr);
+          
+          // Check if it's a rate limit error or schema validation error
+          const isRateLimit = fastErr.status === 413 || fastErr.code === 'rate_limit_exceeded' || (fastErr.message && fastErr.message.includes('413'));
+          const isValidationError = fastErr.message && (fastErr.message.includes('validation') || fastErr.message.includes('schema') || fastErr.message.includes('Validation'));
+          
+          if (isRateLimit || isValidationError) {
+            const msg = isValidationError ? 'Processing encountered data format issues' : 'AI service is at capacity';
+            console.warn(`[${isValidationError ? 'VALIDATION' : 'RATE_LIMIT'}] ${msg}. Creating minimal summary fallback...`);
+            
+            // Extract what we can from the text for the fallback
+            const abstractMatch = textContent.match(/abstract[\s\n]*([^]*?)(introduction|keywords|1\.|§)/i);
+            const introMatch = textContent.match(/introduction[\s\n]*([^]*?)(related work|literature|methodology|2\.|§)/i);
+            const relatedMatch = textContent.match(/(related work|literature|prior art)[\s\n]*([^]*?)(methodology|methods|3\.|§)/i);
+            const methodMatch = textContent.match(/(methodology|methods|approach)[\s\n]*([^]*?)(results|evaluation|4\.|§)/i);
+            const resultsMatch = textContent.match(/(results|evaluation|findings)[\s\n]*([^]*?)(conclusion|discussion|5\.|§)/i);
+            const conclusionMatch = textContent.match(/(conclusion|conclusions|discussion)[\s\n]*([^]*?)($|references|bibliography)/i);
+            
+            const fAbstract = (abstractMatch ? abstractMatch[1] : textContent.substring(0, 300)).trim().substring(0, 300);
+            const fIntro = (introMatch ? introMatch[1] : fAbstract.substring(0, 200)).trim().substring(0, 200);
+            const fRelated = (relatedMatch ? relatedMatch[2] : '').trim().substring(0, 200);
+            const fMethods = (methodMatch ? methodMatch[2] : '').trim().substring(0, 250);
+            const fResults = (resultsMatch ? resultsMatch[2] : '').trim().substring(0, 250);
+            const fConclusion = (conclusionMatch ? conclusionMatch[2] : '').trim().substring(0, 250);
+
+            // Create a minimal but valid summary structure
+            summaryRes = {
+              expert: {
+                abstract: fAbstract,
+                breakdown: {
+                  introduction: fIntro,
+                  relatedWork: fRelated,
+                  methodology: fMethods,
+                  results: fResults,
+                  conclusion: fConclusion,
+                },
+                contributions: [],
+                limitations: [],
+                openQuestions: [],
+              },
+              practitioner: {
+                whatItsAbout: fAbstract,
+                highlights: {
+                  introduction: fIntro,
+                  relatedWork: fRelated,
+                  methodology: fMethods,
+                  results: fResults,
+                  conclusion: fConclusion,
+                },
+                actionableContributions: [],
+                technologies: [],
+                useInPractice: [],
+              },
+              beginner: {
+                plainEnglish: fAbstract,
+                parts: {
+                  introduction: fIntro,
+                  theIdea: fMethods || 'Paper methodology',
+                  didItWork: fResults || 'Results of the study',
+                  takeaway: fConclusion || 'Main conclusions',
+                },
+                importantThings: [],
+                jargon: [],
+                complexityRating: 3,
+                verdict: 'Summary generation deferred due to service issues.',
+              },
+            };
+            kgRes = { nodes: [], edges: [] };
+            
+            // Don't alert for validation errors, just warn in console
+            if (isRateLimit) {
+              alert('🚀 AI service is at capacity. Summary will be generated later. Your paper has been uploaded successfully.');
+            }
+          } else {
+            // Other errors — rethrow
+            throw fastErr;
+          }
+        }
         setCurrentStep(5);
 
         // Write to cache so same paper never costs tokens again

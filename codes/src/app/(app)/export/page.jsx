@@ -91,16 +91,31 @@ export default function ExportPage() {
   }, [selectedPaperIds, contentSelection, selectedFormat]);
 
   const fetchPaperDetails = async (paperId) => {
-    if (!user || !firestore) return { chat: [] };
+    if (!user || !firestore) return { insights: null, chat: [] };
     try {
+      // First get the paper document to find the insightsId
+      const paperRef = doc(firestore, `users/${user.uid}/papers/${paperId}`);
+      const paperSnap = await getDoc(paperRef);
+      const paperData = paperSnap.data();
+      
+      let insights = null;
+      if (paperData?.insightsId) {
+        const insightsRef = doc(firestore, `users/${user.uid}/papers/${paperId}/insights/${paperData.insightsId}`);
+        const insightsSnap = await getDoc(insightsRef);
+        if (insightsSnap.exists()) {
+          insights = insightsSnap.data();
+        }
+      }
+      
       const chatRef = collection(firestore, `users/${user.uid}/papers/${paperId}/chat`);
       const chatSnap = await getDocs(query(chatRef, orderBy('timestamp', 'asc')));
       return {
+        insights,
         chat: chatSnap.docs.map(doc => doc.data())
       };
     } catch (e) {
-      console.error("Error fetching chat details:", e);
-      return { chat: [] };
+      console.error("Error fetching paper details:", e);
+      return { insights: null, chat: [] };
     }
   };
 
@@ -127,6 +142,7 @@ export default function ExportPage() {
     for (const p of selectedData) {
       doc.addPage();
       const details = await fetchPaperDetails(p.id);
+      const insights = details.insights;
       
       doc.setFontSize(16);
       doc.setTextColor(83, 74, 183);
@@ -149,12 +165,23 @@ export default function ExportPage() {
         doc.setFontSize(10);
         doc.text(`Audience Level: Practitioner`, 20, currentY);
         currentY += 8;
-        const sumText = p.insights?.summaries?.practitioner?.text || p.summary?.text || "No summary available.";
-        const sumLines = doc.splitTextToSize(sumText, 170);
+        
+        // Try multiple data sources for summary
+        let summaryText = insights?.papers?.[0]?.summaries?.practitioner?.text || 
+                         insights?.summaries?.practitioner?.text ||
+                         p.summary?.text || 
+                         p.abstract ||
+                         "Summary not available - paper content was extracted but detailed analysis failed.";
+        
+        const sumLines = doc.splitTextToSize(summaryText, 170);
         doc.text(sumLines, 20, currentY);
         currentY += (sumLines.length * 5) + 8;
 
-        const contributions = p.insights?.summaries?.practitioner?.contributions || [];
+        // Try multiple sources for contributions
+        const contributions = insights?.papers?.[0]?.summaries?.practitioner?.contributions || 
+                             insights?.summaries?.practitioner?.contributions || 
+                             [];
+        
         if (contributions.length > 0) {
           doc.setFontSize(11);
           doc.text("Key Contributions:", 20, currentY);
@@ -168,7 +195,9 @@ export default function ExportPage() {
           currentY += 5;
         }
 
-        const highlights = p.insights?.summaries?.sectionHighlights || [];
+        const highlights = insights?.papers?.[0]?.summaries?.sectionHighlights || 
+                          insights?.summaries?.sectionHighlights || 
+                          [];
         if (highlights.length > 0) {
           doc.setFontSize(11);
           doc.text("Section Highlights:", 20, currentY);
@@ -191,7 +220,7 @@ export default function ExportPage() {
         doc.setFontSize(13);
         doc.text("2. Extracted Entities", 20, currentY);
         currentY += 10;
-        const concepts = (p.insights?.concepts || []).slice(0, 15);
+        const concepts = (insights?.papers?.[0]?.concepts || []).slice(0, 15);
         if (concepts.length > 0) {
           autoTable(doc, {
             startY: currentY,
@@ -213,7 +242,7 @@ export default function ExportPage() {
         doc.setFontSize(13);
         doc.text("3. Key Results", 20, currentY);
         currentY += 10;
-        const viz = (p.insights?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
+        const viz = (insights?.papers?.[0]?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
         const rows = [];
         viz.forEach(v => {
           (v.labels || []).forEach((l, li) => {
@@ -243,7 +272,7 @@ export default function ExportPage() {
         doc.setFontSize(13);
         doc.text("4. Knowledge Graph", 20, currentY);
         currentY += 10;
-        const links = (p.insights?.links || []).slice(0, 15);
+        const links = (insights?.papers?.[0]?.links || []).slice(0, 15);
         if (links.length > 0) {
           autoTable(doc, {
             startY: currentY,
@@ -297,6 +326,7 @@ export default function ExportPage() {
 
     for (const p of selectedData) {
       const details = await fetchPaperDetails(p.id);
+      const insights = details.insights;
       const paperChildren = [
         new Paragraph({ text: p.title || "Untitled Paper", heading: HeadingLevel.HEADING_1 }),
         new Paragraph({ 
@@ -308,9 +338,9 @@ export default function ExportPage() {
       if (contentSelection.summary) {
         paperChildren.push(new Paragraph({ text: "1. Summary Digest", heading: HeadingLevel.HEADING_2 }));
         paperChildren.push(new Paragraph({ children: [new TextRun({ text: "Audience Level: Practitioner", italics: true, size: 22 })] }));
-        paperChildren.push(new Paragraph({ text: p.insights?.summaries?.practitioner?.text || p.summary?.text || "N/A", spacing: { line: 360 } }));
+        paperChildren.push(new Paragraph({ text: insights?.papers?.[0]?.summaries?.practitioner?.text || p.summary?.text || "N/A", spacing: { line: 360 } }));
         
-        const contributions = p.insights?.summaries?.practitioner?.contributions || [];
+        const contributions = insights?.papers?.[0]?.summaries?.practitioner?.contributions || [];
         if (contributions.length > 0) {
           paperChildren.push(new Paragraph({ text: "Key Contributions:", heading: HeadingLevel.HEADING_3 }));
           contributions.forEach((c, ci) => {
@@ -321,7 +351,7 @@ export default function ExportPage() {
 
       if (contentSelection.entities) {
         paperChildren.push(new Paragraph({ text: "2. Extracted Entities", heading: HeadingLevel.HEADING_2 }));
-        const concepts = (p.insights?.concepts || []).slice(0, 15);
+        const concepts = (insights?.papers?.[0]?.concepts || []).slice(0, 15);
         if (concepts.length > 0) {
           paperChildren.push(new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -348,7 +378,7 @@ export default function ExportPage() {
 
       if (contentSelection.results) {
         paperChildren.push(new Paragraph({ text: "3. Key Results", heading: HeadingLevel.HEADING_2 }));
-        const viz = (p.insights?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
+        const viz = (insights?.papers?.[0]?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
         const rows = [];
         viz.forEach(v => (v.labels || []).forEach((l, li) => {
           (v.datasets || []).forEach(ds => {
@@ -382,7 +412,7 @@ export default function ExportPage() {
 
       if (contentSelection.graph) {
         paperChildren.push(new Paragraph({ text: "4. Knowledge Graph", heading: HeadingLevel.HEADING_2 }));
-        const links = (p.insights?.links || []).slice(0, 15);
+        const links = (insights?.papers?.[0]?.links || []).slice(0, 15);
         if (links.length > 0) {
           paperChildren.push(new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -424,6 +454,7 @@ export default function ExportPage() {
     for (let i = 0; i < selectedData.length; i++) {
       const p = selectedData[i];
       const details = await fetchPaperDetails(p.id);
+      const insights = details.insights;
       
       str += "--------------------------------------------------------------------------------\n";
       str += `PAPER ${i+1}: ${p.title || 'Untitled'}\n`;
@@ -432,15 +463,15 @@ export default function ExportPage() {
       str += "--------------------------------------------------------------------------------\n\n";
 
       if (contentSelection.summary) {
-        str += "[SUMMARY]\n" + (p.insights?.summaries?.practitioner?.text || p.summary?.text || "N/A") + "\n\n";
+        str += "[SUMMARY]\n" + (insights?.papers?.[0]?.summaries?.practitioner?.text || p.summary?.text || "N/A") + "\n\n";
         str += "[KEY CONTRIBUTIONS]\n";
-        (p.insights?.summaries?.practitioner?.contributions || []).forEach((c, ci) => str += `${ci+1}. ${c || ''}\n`);
+        (insights?.papers?.[0]?.summaries?.practitioner?.contributions || []).forEach((c, ci) => str += `${ci+1}. ${c || ''}\n`);
         str += "\n";
       }
 
       if (contentSelection.entities) {
         str += "[EXTRACTED ENTITIES]\n";
-        (p.insights?.concepts || []).slice(0, 10).forEach(c => {
+        (insights?.papers?.[0]?.concepts || []).slice(0, 10).forEach(c => {
           str += `${(c.type || 'CONCEPT').padEnd(10)}: ${c.label || 'N/A'}\n`;
         });
         str += "\n";
@@ -450,7 +481,7 @@ export default function ExportPage() {
         str += "[KEY RESULTS]\n";
         str += "Metric".padEnd(20) + " | " + "Value".padEnd(10) + " | " + "Context" + "\n";
         str += "-".repeat(20) + "|-".repeat(11) + "|-".repeat(27) + "\n";
-        const viz = (p.insights?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
+        const viz = (insights?.papers?.[0]?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
         viz.forEach(v => (v.labels || []).forEach((l, li) => {
           str += (l || 'N/A').substring(0, 19).padEnd(20) + " | " + ((v.datasets?.[0]?.data?.[li] ?? '') + (v.unit || '')).toString().padEnd(10) + " | " + (v.title || '') + "\n";
         }));
@@ -459,7 +490,7 @@ export default function ExportPage() {
 
       if (contentSelection.graph) {
         str += "[KNOWLEDGE GRAPH — EDGE LIST]\n";
-        (p.insights?.links || []).slice(0, 15).forEach(l => {
+        (insights?.papers?.[0]?.links || []).slice(0, 15).forEach(l => {
           str += `${(l.from || 'N/A').padEnd(20)} --[${l.relation || 'relates'}]--> ${l.to || 'N/A'}\n`;
         });
         str += "\n";
@@ -483,6 +514,7 @@ export default function ExportPage() {
     for (let i = 0; i < selectedData.length; i++) {
       const p = selectedData[i];
       const details = await fetchPaperDetails(p.id);
+      const insights = details.insights;
       
       md += `## Paper ${i+1}: ${p.title || 'Untitled'}\n\n`;
       md += `**Authors:** ${p.authors?.join(', ') || 'Unknown'}  \n`;
@@ -490,15 +522,15 @@ export default function ExportPage() {
       md += `**DOI:** \`${p.doi || 'N.A'}\`  \n\n---\n\n`;
 
       if (contentSelection.summary) {
-        md += `### Summary\n> Audience level: Practitioner\n\n${p.insights?.summaries?.practitioner?.text || p.summary?.text || "N/A"}\n\n`;
+        md += `### Summary\n> Audience level: Practitioner\n\n${insights?.papers?.[0]?.summaries?.practitioner?.text || p.summary?.text || "N/A"}\n\n`;
         md += `**Key contributions:**\n`;
-        (p.insights?.summaries?.practitioner?.contributions || []).forEach((c, ci) => md += `${ci+1}. ${c || ''}\n`);
+        (insights?.papers?.[0]?.summaries?.practitioner?.contributions || []).forEach((c, ci) => md += `${ci+1}. ${c || ''}\n`);
         md += `\n---\n\n`;
       }
 
       if (contentSelection.entities) {
         md += `### Extracted Entities\n\n| Entity | Type | Relevance |\n|--------|------|-----------|\n`;
-        (p.insights?.concepts || []).slice(0, 15).forEach(c => {
+        (insights?.papers?.[0]?.concepts || []).slice(0, 15).forEach(c => {
           md += `| ${c.label || 'N/A'} | ${c.type || 'N/A'} | ${(c.weight || 0) * 10}% |\n`;
         });
         md += `\n---\n\n`;
@@ -506,7 +538,7 @@ export default function ExportPage() {
 
       if (contentSelection.results) {
         md += `### Key Results\n\n| Metric | Value | Context |\n|--------|-------|---------|\n`;
-        const viz = (p.insights?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
+        const viz = (insights?.papers?.[0]?.visualizations || []).filter(v => ['bar', 'horizontal-bar', 'grouped-bar'].includes(v.chartType));
         viz.forEach(v => (v.labels || []).forEach((l, li) => {
           md += `| ${l || 'N/A'} | ${(v.datasets?.[0]?.data?.[li] ?? '')}${v.unit || ''} | ${v.title || ''} |\n`;
         }));
@@ -515,7 +547,7 @@ export default function ExportPage() {
 
       if (contentSelection.graph) {
         md += `### Knowledge Graph\n\n\`\`\`markdown\n`;
-        (p.insights?.links || []).slice(0, 15).forEach(l => {
+        (insights?.papers?.[0]?.links || []).slice(0, 15).forEach(l => {
           md += `${l.from || 'N/A'}  --[${l.relation || 'relates'}]-->  ${l.to || 'N/A'}\n`;
         });
         md += `\`\`\`\n\n---\n\n`;
@@ -535,6 +567,7 @@ export default function ExportPage() {
     const papersArr = [];
     for (const p of selectedData) {
       const details = await fetchPaperDetails(p.id);
+      const insights = details.insights;
       papersArr.push({
         id: p.id,
         metadata: {
@@ -546,15 +579,15 @@ export default function ExportPage() {
         },
         summary: {
           audience_level: "practitioner",
-          abstract_rewrite: p.insights?.summaries?.practitioner?.text || "",
-          key_contributions: p.insights?.summaries?.practitioner?.contributions || [],
-          section_highlights: p.insights?.summaries?.sectionHighlights || []
+          abstract_rewrite: insights?.papers?.[0]?.summaries?.practitioner?.text || "",
+          key_contributions: insights?.papers?.[0]?.summaries?.practitioner?.contributions || [],
+          section_highlights: insights?.papers?.[0]?.summaries?.sectionHighlights || []
         },
-        entities: (p.insights?.concepts || []).map(c => ({ name: c.label, type: c.type, relevance: (c.weight || 0) * 10 })),
-        key_results: (p.insights?.visualizations || []).map(v => ({ title: v.title, labels: v.labels, data: v.datasets[0].data, unit: v.unit })),
+        entities: (insights?.papers?.[0]?.concepts || []).map(c => ({ name: c.label, type: c.type, relevance: (c.weight || 0) * 10 })),
+        key_results: (insights?.papers?.[0]?.visualizations || []).map(v => ({ title: v.title, labels: v.labels, data: v.datasets[0].data, unit: v.unit })),
         knowledge_graph: {
-          nodes: (p.insights?.concepts || []).map(c => ({ id: c.id, type: c.type, label: c.label })),
-          edges: (p.insights?.links || []).map(l => ({ source: l.from, target: l.to, label: l.relation }))
+          nodes: (insights?.papers?.[0]?.concepts || []).map(c => ({ id: c.id, type: c.type, label: c.label })),
+          edges: (insights?.papers?.[0]?.links || []).map(l => ({ source: l.from, target: l.to, label: l.relation }))
         },
         qa_log: details.chat
       });

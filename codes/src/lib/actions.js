@@ -8,7 +8,7 @@ import { generateVisualization } from '@/ai/flows/generate-visualization';
 import { analyzePaperFast } from '@/ai/flows/analyze-paper-fast';
 import { explainParagraph } from '@/ai/flows/explain-paragraph';
 import { db } from '@/lib/firebase-server';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 export async function runSummarizePaper(paperText) {
   return await summarizePaper({ paperText });
@@ -28,6 +28,16 @@ export async function askQuestionContext(paperText, question) {
     return result?.answer || "I'm sorry, I couldn't generate an answer due to an overloaded system. Please try again.";
   } catch (err) {
     console.error("askQuestionContext Error:", err);
+    throw err;
+  }
+}
+
+export async function askQuestion(context, question) {
+  try {
+    if (!context || !question) throw new Error('Missing context or question');
+    return await askQuestionContext(context, question);
+  } catch (err) {
+    console.error("askQuestion Server Action Error:", err);
     throw err;
   }
 }

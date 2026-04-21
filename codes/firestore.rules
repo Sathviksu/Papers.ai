@@ -191,5 +191,18 @@ service cloud.firestore {
       allow delete: if isExistingOwner(userId);
     }
 
+    /**
+     * @description Controls access to Q&A chat messages for a specific paper.
+     * @path /users/{userId}/papers/{paperId}/chat/{messageId}
+     * @principle Secures a subcollection by checking ownership of the parent path. Relies on denormalized `userId` for writes.
+     */
+    match /users/{userId}/papers/{paperId}/chat/{messageId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && hasCorrectSubcollectionDataOnCreate(userId, paperId);
+      allow update: if isExistingOwner(userId) && isSubcollectionDataImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
   }
 }

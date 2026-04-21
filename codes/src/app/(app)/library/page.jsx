@@ -8,7 +8,7 @@ import { Button } from '@/components/aurora/Button';
 import { Input } from '@/components/aurora/Input';
 import { Search, Star, Trash2, Download, Eye, FileBox, BookOpen, Zap, Calendar, GitCompare } from 'lucide-react';
 import Link from 'next/link';
-import { PaperRelationshipMap } from './_components/relationship-map';
+import { removeCachedPaper } from '@/lib/paper-cache';
 
 const CARD_GRADIENTS = [
   { from: 'from-violet-500', to: 'to-indigo-600', glow: 'shadow-violet-500/20', light: 'bg-violet-50', text: 'text-violet-600', dot: 'bg-violet-500' },
@@ -205,7 +205,6 @@ function LibraryContent() {
 
   const [paperToDelete, setPaperToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showMap, setShowMap] = useState(false);
 
   const FILTERS = [
     { key: 'all', label: 'All Papers' },
@@ -220,6 +219,9 @@ function LibraryContent() {
     if (!paperToDelete) return;
     setIsDeleting(true);
     try {
+      if (paperToDelete.fullText) {
+        removeCachedPaper(paperToDelete.fullText);
+      }
       await deleteDoc(doc(firestore, `users/${user.uid}/papers/${paperToDelete.id}`));
       setPaperToDelete(null);
     } catch (error) {
@@ -250,9 +252,6 @@ function LibraryContent() {
         </div>
       )}
 
-      {/* Relationship Map Modal */}
-      {showMap && <PaperRelationshipMap papers={papers || []} onClose={() => setShowMap(false)} />}
-
       {/* Hero Header */}
       <div className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-aurora-blue via-aurora-violet to-aurora-rose p-10 text-white shadow-2xl">
         {/* Background blobs */}
@@ -282,13 +281,6 @@ function LibraryContent() {
               placeholder="Search titles, authors..."
               className="w-full pl-11 pr-5 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white placeholder:text-white/50 text-sm font-medium outline-none focus:bg-white/25 focus:border-white/40 transition-all"
             />
-            <button 
-              onClick={() => setShowMap(true)}
-              className="absolute -bottom-14 left-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 text-xs font-bold transition-all"
-            >
-              <GitCompare className="w-3.5 h-3.5" />
-              View Relationship Map
-            </button>
           </div>
         </div>
       </div>

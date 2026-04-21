@@ -33,7 +33,12 @@ Rules:
 3. Keep it brief (max 4 sentences).
 4. Provide a single "Key Takeaway".
 
-Return ONLY raw JSON.`,
+Return a JSON object with exactly these two fields:
+- "simpleExplanation": Your plain-language explanation
+- "keyTakeaway": The single most important point
+
+Example output:
+{"simpleExplanation": "This paragraph explains how...", "keyTakeaway": "The main point is..."}`,
 });
 
 const explainParagraphFlow = ai.defineFlow(

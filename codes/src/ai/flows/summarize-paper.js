@@ -53,61 +53,64 @@ const summarizePaperPrompt = ai.definePrompt({
 YOU MUST STRICTLY FOLLOW THESE 3 FORMATS EXACTLY AS SHOWN. USE LINE BREAKS (\\n) AND SPACING EXACTLY AS DEPICTED. DO NOT USE MARKDOWN HEADERS LIKE ###, JUST USE THE EXACT TEXT HEADINGS PROVIDED BELOW.
 
 FORMAT 1 (expertText):
-[Title] [DOI if found] [Conference] [Year] [Pages] [References Count]
+[Title] [DOI] [Conference] [Year] [Pages] [References]
 
 Abstract (technical, full jargon preserved)
-  [2-3 sentences using domain-specific terminology exactly as the authors used it. No simplification.]
+  2-3 sentences using domain-specific terminology exactly as 
+  the authors used it. No simplification.
 
 Section-by-section technical breakdown
-  Introduction     → [Research gap, hypothesis, prior art referenced]
-  Related Work     → [Which specific papers, what they lack]
-  Methodology      → [Architecture, algorithms, parameters, datasets]
-  Results          → [Exact metrics, benchmarks, statistical significance]
-  Conclusion       → [Claims made, reproducibility, future directions]
+  Introduction     → Research gap, hypothesis, prior art referenced
+  Related Work     → Which specific papers, what they lack
+  Methodology      → Architecture, algorithms, parameters, datasets
+  Results          → Exact metrics, benchmarks, statistical significance
+  Conclusion       → Claims made, reproducibility, future directions
 
 Key contributions (precise & falsifiable)
-  1. [Specific technical claim with measurable outcome]
-  2. [Novel architecture/method with what it improves over baseline]
-  3. [Experimental finding with exact numbers]
+  1. Specific technical claim with measurable outcome
+  2. Novel architecture/method with what it improves over baseline
+  3. Experimental finding with exact numbers
 
 Limitations flagged by authors
-  · [Limitation 1]
-  · [Limitation 2]
+  · ...
+  · ...
 
 Open research questions
-  · [Question 1]
+  · ...
 
 
 FORMAT 2 (practitionerText):
 [Title] [Conference] [Year]
 
-What this paper is about
-  [Clear enough for someone who knows the domain but isn't a researcher in it. 2-3 sentences.]
+What this paper is about (2-3 sentences, balanced)
+  Clear enough for someone who knows the domain 
+  but isn't a researcher in it.
 
 Section highlights
-  Introduction     → [Problem being solved and why it matters now]
-  Related Work     → [What exists today and what's missing]
-  Methodology      → [How the proposed system works at a high level]
-  Results          → [Key outcomes and real-world case studies]
-  Conclusion       → [What to take away and what comes next]
+  Introduction     → Problem being solved and why it matters now
+  Related Work     → What exists today and what's missing
+  Methodology      → How the proposed system works at a high level
+  Results          → Key outcomes and real-world case studies
+  Conclusion       → What to take away and what comes next
 
 Key contributions (actionable)
-  1. [What was built and what problem it solves]
-  2. [Real-world validation or case study]
-  3. [Practical benefit for the industry]
+  1. What was built and what problem it solves
+  2. Real-world validation (e.g. Walmart case study)
+  3. Practical benefit for the industry
 
 Technologies used
-  · [Tech 1] · [Tech 2] · [Tech 3]
+  · Blockchain · Smart Contracts · RFID · IoT
 
 Potential use in practice
-  · [How a company could apply this today]
+  · How a company could apply this today
 
 
 FORMAT 3 (beginnerText):
 [Title] [Year]
 
-In plain English
-  [Explain it like the reader has no background. Use analogies. Avoid all technical terms. 2-3 sentences.]
+In plain English (2-3 sentences, zero jargon)
+  Explain it like the reader has no background.
+  Use analogies. Avoid all technical terms.
 
 What each part of the paper says
   Introduction     → "The paper starts by explaining the problem..."
@@ -116,18 +119,19 @@ What each part of the paper says
   Takeaway         → "The big conclusion is..."
 
 The 3 most important things to know
-  1. [Simple one-liner]
-  2. [Simple one-liner]
-  3. [Simple one-liner]
+  1. Simple one-liner
+  2. Simple one-liner  
+  3. Simple one-liner
 
 Words you might not know
-  [Jargon 1] → [Simple explanation]
-  [Jargon 2] → [Simple explanation]
-  [Jargon 3] → [Simple explanation]
+  Blockchain     → A shared digital record nobody can secretly change
+  Smart Contract → A rule that runs automatically when conditions are met
+  RFID           → A tiny chip that lets you track physical objects
 
 Is this paper worth reading?
-  Complexity: [Rate out of 5 using ● and ○, e.g. ●●●○○]
-  "[1 sentence beginner-friendly verdict]"
+  [Beginner-friendly verdict — complexity rating out of 5]
+  Complexity: ●●●○○  
+  "Readable if you know basic supply chain concepts"
 
 
 Return these 3 string blocks precisely matching the templates above in the JSON output.

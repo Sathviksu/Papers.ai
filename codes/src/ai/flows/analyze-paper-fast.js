@@ -17,101 +17,99 @@ const InputSchema = z.object({
 const OutputSchema = z.object({
   summary: z.object({
     expert: z.object({
-      abstract: z.string(),
+      abstract: z.string().default(''),
       breakdown: z.object({
-        introduction: z.string(),
-        relatedWork: z.string(),
-        methodology: z.string(),
-        results: z.string(),
-        conclusion: z.string(),
-      }),
-      contributions: z.array(z.string()),
-      limitations: z.array(z.string()),
-      openQuestions: z.array(z.string()),
-    }).optional(),
+        introduction: z.string().default(''),
+        relatedWork: z.string().default(''),
+        methodology: z.string().default(''),
+        results: z.string().default(''),
+        conclusion: z.string().default(''),
+      }).default({}),
+      contributions: z.array(z.string()).default([]),
+      limitations: z.array(z.string()).default([]),
+      openQuestions: z.array(z.string()).default([]),
+    }).optional().default({}),
     practitioner: z.object({
-      whatItsAbout: z.string(),
+      whatItsAbout: z.string().default(''),
       highlights: z.object({
-        introduction: z.string(),
-        relatedWork: z.string(),
-        methodology: z.string(),
-        results: z.string(),
-        conclusion: z.string(),
-      }),
-      actionableContributions: z.array(z.string()),
-      technologies: z.array(z.string()),
-      useInPractice: z.array(z.string()),
-    }).optional(),
+        introduction: z.string().default(''),
+        relatedWork: z.string().default(''),
+        methodology: z.string().default(''),
+        results: z.string().default(''),
+        conclusion: z.string().default(''),
+      }).default({}),
+      actionableContributions: z.array(z.string()).default([]),
+      technologies: z.array(z.string()).default([]),
+      useInPractice: z.array(z.string()).default([]),
+    }).optional().default({}),
     beginner: z.object({
-      plainEnglish: z.string(),
+      plainEnglish: z.string().default(''),
       parts: z.object({
-        introduction: z.string(),
-        theIdea: z.string(),
-        didItWork: z.string(),
-        takeaway: z.string(),
-      }),
-      importantThings: z.array(z.string()),
-      jargon: z.array(z.object({ term: z.string(), simpleExplanation: z.string() })),
-      complexityRating: z.number().describe('1 to 5'),
-      verdict: z.string(),
-    }).optional(),
-  }),
+        introduction: z.string().default(''),
+        theIdea: z.string().default(''),
+        didItWork: z.string().default(''),
+        takeaway: z.string().default(''),
+      }).default({}),
+      importantThings: z.array(z.string()).default([]),
+      jargon: z.array(z.object({ 
+        term: z.string().default(''), 
+        simpleExplanation: z.string().default('') 
+      })).default([]),
+      complexityRating: z.number().default(3),
+      verdict: z.string().default(''),
+    }).optional().default({}),
+  }).default({}),
   knowledgeGraph: z.object({
     nodes: z.array(z.object({
-      id: z.string(),
-      type: z.string().describe('Concept | Model | Dataset | Method'),
-      label: z.string(),
-    })).optional().default([]),
+      id: z.string().default(''),
+      type: z.string().default('Concept'),
+      label: z.string().default(''),
+    })).default([]),
     edges: z.array(z.object({
-      id: z.string(),
-      source: z.string(),
-      target: z.string(),
-      label: z.string(),
-    })).optional().default([]),
-  }),
-});
+      id: z.string().default(''),
+      source: z.string().default(''),
+      target: z.string().default(''),
+      label: z.string().default(''),
+    })).default([]),
+  }).default({ nodes: [], edges: [] }),
+}).default({});
 
 const analyzeFastPrompt = ai.definePrompt({
   name: 'analyzePaperFastPrompt',
-  model: MODELS.fast, // llama-3.1-8b-instant — 500k TPD
+  model: MODELS.heavy, // llama-3.3-70b-versatile — higher quality
   input: { schema: InputSchema },
   output: { schema: OutputSchema },
   config: { temperature: 0.3 },
-  prompt: `Analyse the research paper below. Return a single JSON object with two keys: "summary" and "knowledgeGraph".
+  prompt: `Analyze this paper. Return JSON with "summary" (expert, practitioner, beginner) and "knowledgeGraph".
 
-For "summary", generate 3 structured nested objects: 'expert', 'practitioner', and 'beginner'. 
-DO NOT USE MARKDOWN SYNTAX. Output ONLY raw nested JSON strings and arrays.
+EXPERT: 
+- abstract: technical summary
+- breakdown: {introduction, relatedWork, methodology, results, conclusion} - each 2-3 sentences
+- contributions: 2 key contributions
+- limitations: 2 main limitations
+- openQuestions: 2 open questions
 
-1. "expert" structure:
-   - abstract: Technical 2-3 sentences. No simplification.
-   - breakdown: { introduction, relatedWork, methodology, results, conclusion }
-   - contributions: Array of 3 precise & falsifiable claims
-   - limitations: Array of limitations flagged by authors
-   - openQuestions: Array of open research questions
+PRACTITIONER:
+- whatItsAbout: brief overview for practitioners
+- highlights: {introduction, relatedWork, methodology, results, conclusion} - each 1-2 sentences
+- actionableContributions: 2 practical contributions
+- technologies: key technologies mentioned
+- useInPractice: 2 ways to apply this work
 
-2. "practitioner" structure:
-   - whatItsAbout: 2-3 sentences, clear but balanced for industry.
-   - highlights: { introduction, relatedWork, methodology, results, conclusion }
-   - actionableContributions: Array of 3 practical built items/validations
-   - technologies: Array of technologies used (e.g. ['Blockchain', 'RFID'])
-   - useInPractice: Array of how companies could apply this today
+BEGINNER:
+- plainEnglish: simple explanation anyone can understand
+- parts: {introduction, theIdea, didItWork, takeaway}
+- importantThings: 2-3 key takeaways
+- jargon: 3 terms with simple explanations
+- complexityRating: 1-5 (1=simple, 5=complex)
+- verdict: overall assessment
 
-3. "beginner" structure:
-   - plainEnglish: 2-3 sentences, zero jargon, explain like reader has no background.
-   - parts: { introduction, theIdea, didItWork, takeaway }
-   - importantThings: Array of 3 very simple one-liners
-   - jargon: Array of {term, simpleExplanation}
-   - complexityRating: Number from 1 to 5
-   - verdict: 1 sentence beginner-friendly verdict
+KNOWLEDGE GRAPH: Max 10 nodes, 12 edges. Focus on key concepts and relationships.
 
-For "knowledgeGraph": extract up to 15 nodes and 20 edges showing conceptual connections in the paper.
+Return ONLY valid JSON. No markdown or extra text.
 
-Return ONLY raw JSON. No explanation.
-
-Paper:
----
-{{{paperText}}}
----`,
+Paper text:
+{{{paperText}}}`,
 });
 
 const analyzePaperFastFlow = ai.defineFlow(
@@ -121,41 +119,58 @@ const analyzePaperFastFlow = ai.defineFlow(
     outputSchema: OutputSchema,
   },
   async (input) => {
-    // 8B handles less context well but we need enough for a deep summary
-    const MAX_CHARS = 35_000; 
+    // With time not being a constraint, use 25k chars for better quality summaries
+    // This gives enough context for methodology + results + conclusions while staying under 6000 TPM
+    const MAX_CHARS = 25_000; 
     const trimmed = {
       paperText: input.paperText.length > MAX_CHARS
-        ? input.paperText.slice(0, MAX_CHARS) + '\n[TRUNCATED]'
+        ? input.paperText.slice(0, MAX_CHARS) + '\n[CONTENT TRUNCATED - processed first 25k characters]'
         : input.paperText,
     };
     let output;
     try {
       const response = await analyzeFastPrompt(trimmed);
       output = response.output;
+      
+      // Ensure output has required structure even if model returned partial data
+      if (!output.summary) output.summary = {};
+      if (!output.knowledgeGraph) output.knowledgeGraph = { nodes: [], edges: [] };
+      
+      // Ensure all nested objects exist
+      if (!output.summary.expert) output.summary.expert = { abstract: '', breakdown: {}, contributions: [], limitations: [], openQuestions: [] };
+      if (!output.summary.practitioner) output.summary.practitioner = { whatItsAbout: '', highlights: {}, actionableContributions: [], technologies: [], useInPractice: [] };
+      if (!output.summary.beginner) output.summary.beginner = { plainEnglish: '', parts: {}, importantThings: [], jargon: [], complexityRating: 3, verdict: '' };
+      
+      return output;
     } catch (err) {
       if (isValidationError(err)) {
         console.warn('⚠️ [FAST ANALYZE REPAIR] Schema validation failed. Attempting to recover...');
         const rawText = extractRawText(err);
-        const rawOutput = rawText ? JSON.parse(rawText) : null;
-        if (rawOutput && (rawOutput.summary || rawOutput.knowledgeGraph)) {
+        let rawOutput = null;
+        
+        try {
+          if (rawText) rawOutput = JSON.parse(rawText);
+        } catch (parseErr) {
+          console.warn('⚠️ [FAST ANALYZE REPAIR] Could not parse raw JSON:', parseErr.message);
+        }
+        
+        if (rawOutput) {
            console.log('✅ [FAST ANALYZE REPAIR] Recovered partial data from raw text.');
            output = rawOutput;
-           // ensure summary fallback exists
-           if (!output.summary) {
-             output.summary = {};
-           }
         } else {
-           console.error('❌ [FAST ANALYZE REPAIR] Fundamentally broken JSON. Returning fallback.');
-           output = { 
-             summary: {},
-             knowledgeGraph: { nodes: [], edges: [] }
-           };
+           console.error('❌ [FAST ANALYZE REPAIR] Could not recover data. Using empty structure.');
+           output = { summary: {}, knowledgeGraph: { nodes: [], edges: [] } };
         }
+        
+        // Ensure output has required structure even if recovered partially
+        if (!output.summary) output.summary = {};
+        if (!output.knowledgeGraph) output.knowledgeGraph = { nodes: [], edges: [] };
+        
+        return output;
       } else {
         throw err;
       }
     }
-    return output;
   }
 );
 
@@ -178,14 +193,22 @@ export async function analyzePaperFast(input) {
       } catch (fErr) {
         console.error('❌ [FAST ANALYZE FALLBACK FAILED]', fErr);
         return { 
-          summary: { expertText: '', practitionerText: '', beginnerText: '' },
+          summary: { 
+            expert: { abstract: '', breakdown: { introduction: '', methodology: '', results: '', conclusion: '', relatedWork: '' }, contributions: [], limitations: [], openQuestions: [] },
+            practitioner: { whatItsAbout: '', highlights: { introduction: '', methodology: '', results: '', conclusion: '', relatedWork: '' }, actionableContributions: [], technologies: [], useInPractice: [] },
+            beginner: { plainEnglish: '', parts: { introduction: '', theIdea: '', didItWork: '', takeaway: '' }, importantThings: [], jargon: [], verdict: '' }
+          },
           knowledgeGraph: { nodes: [], edges: [] }
         };
       }
     }
     console.error('❌ [analyzePaperFast] Flow failed:', err);
     return { 
-      summary: { expertText: '', practitionerText: '', beginnerText: '' },
+      summary: { 
+        expert: { abstract: '', breakdown: { introduction: '', methodology: '', results: '', conclusion: '', relatedWork: '' }, contributions: [], limitations: [], openQuestions: [] },
+        practitioner: { whatItsAbout: '', highlights: { introduction: '', methodology: '', results: '', conclusion: '', relatedWork: '' }, actionableContributions: [], technologies: [], useInPractice: [] },
+        beginner: { plainEnglish: '', parts: { introduction: '', theIdea: '', didItWork: '', takeaway: '' }, importantThings: [], jargon: [], verdict: '' }
+      },
       knowledgeGraph: { nodes: [], edges: [] }
     };
   }

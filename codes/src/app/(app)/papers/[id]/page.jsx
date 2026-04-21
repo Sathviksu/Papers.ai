@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { useDoc } from '@/firebase/firestore/use-doc';
@@ -18,104 +18,9 @@ import { CitationNetworkGraph } from './_components/citation-graph-view';
 import { KnowledgeGraphView } from './_components/knowledge-graph-view';
 import { CitationGenerator } from './_components/citation-generator';
 import { ReplicationChecklist } from './_components/replication-checklist';
+import { QnaView } from './_components/qna-view';
+import { buildQnAContext } from '@/lib/qna-context';
 
-/**
- * Builds a compact, ~3,000 char context string from the already-extracted
- * structured insights. This is ~750 tokens — far below Groq's 12k TPM limit —
- * while including all the information needed to answer questions accurately.
- * Falls back to truncated fullText only when no insights are available.
- */
-function buildQnAContext(paper, summary, insights) {
-  const ex = insights?.papers?.[0] || {};
-  const lines = [];
-
-  lines.push(`PAPER: ${paper?.title || 'Untitled'}`);
-  if (paper?.authors?.length) lines.push(`AUTHORS: ${paper.authors.join(', ')}`);
-  if (paper?.publicationDate) lines.push(`YEAR: ${new Date(paper.publicationDate).getFullYear()}`);
-  lines.push('');
-
-  if (ex.coreQuestion) lines.push(`CORE QUESTION:\n${ex.coreQuestion}`);
-  if (ex.hypothesis) lines.push(`\nHYPOTHESIS:\n${ex.hypothesis}`);
-  if (ex.methodology) lines.push(`\nMETHODOLOGY:\n${ex.methodology}`);
-  if (ex.sampleOrScope) lines.push(`\nSCOPE / DATASET:\n${ex.sampleOrScope}`);
-
-  if (summary?.tldr) lines.push(`\nSUMMARY:\n${summary.tldr}`);
-
-  const claims = ex.claims?.slice(0, 8) || [];
-  if (claims.length) {
-    lines.push('\nKEY CLAIMS:');
-    claims.forEach((c, i) => lines.push(`  ${i + 1}. [${Math.round((c.confidence || 0) * 100)}% confidence] ${c.text}`));
-  }
-
-  const conclusions = ex.conclusions?.slice(0, 6) || [];
-  if (conclusions.length) {
-    lines.push('\nCONCLUSIONS:');
-    conclusions.forEach((c, i) => lines.push(`  ${i + 1}. ${c}`));
-  }
-
-  const limitations = ex.researchGaps?.slice(0, 4) || [];
-  if (limitations.length) {
-    lines.push('\nLIMITATIONS / GAPS:');
-    limitations.forEach(g => lines.push(`  - [${g.severity || 'unknown'} severity] ${g.gap}`));
-  }
-
-  const concepts = ex.concepts?.slice(0, 10) || [];
-  if (concepts.length) {
-    lines.push(`\nKEY CONCEPTS: ${concepts.map(c => c.label).join(', ')}`);
-  }
-
-  if (ex.topics?.length) {
-    lines.push(`\nTOPICS: ${ex.topics.join(', ')}`);
-  }
-
-  if (ex.replicationChecklist?.length) {
-    lines.push('\nREPLICATION CHECKLIST:');
-    ex.replicationChecklist.forEach(item => {
-      lines.push(`  - [${item.status}] ${item.item}: ${item.detail}`);
-    });
-  }
-
-  const refs = ex.citations?.slice(0, 5) || [];
-  if (refs.length) {
-    lines.push('\nNOTABLE REFERENCES:');
-    refs.forEach(r => lines.push(`  - ${r.ref} (${r.year || '?'}): ${r.context || ''}`));
-  }
-
-  const qs = ex.qualityScores || {};
-  if (qs.overall != null) {
-    lines.push(`\nQUALITY SCORES: Overall ${qs.overall}/100 | Novelty ${qs.novelty}/100 | Reproducibility ${qs.reproducibility}/100`);
-  }
-
-  const structuredContext = lines.join('\n').trim();
-  
-  // PRIMARY DATA STRATEGY:
-  // We combine the high-level structured insights (which act as a "Map" for the AI)
-  // with a massive chunk of raw fullText (which provides the "Details").
-  const parts = [
-    "--- STRUCTURED INSIGHTS (SUMMARY) ---",
-    structuredContext
-  ];
-
-  if (paper?.fullText) {
-    // We take a significant chunk of the full text (up to 20k chars)
-    // This is ~5k tokens and fits easily in Groq's 128k context window.
-    const textChunk = paper.fullText.length > 20_000 
-      ? paper.fullText.slice(0, 20_000) + "\n[FULL TEXT TRUNCATED]"
-      : paper.fullText;
-      
-    parts.push("\n--- RAW PAPER CONTENT ---");
-    parts.push(textChunk);
-  }
-
-  const finalContext = parts.join('\n').trim();
-
-  // Emergency fallback: if everything is empty, return "No text available"
-  if (finalContext.length < 50) {
-    return "The system could not extract text from this document. Please check if it is a scanned image.";
-  }
-
-  return finalContext;
-}
 
 export default function PaperDetailPage() {
   const [activeTab, setActiveTab] = useState('summary');
@@ -123,9 +28,11 @@ export default function PaperDetailPage() {
   const [extractionTab, setExtractionTab] = useState('entities');
   const [visualizationMode, setVisualizationMode] = useState('concept-map');
   const [showFullAbstract, setShowFullAbstract] = useState(false);
-  const [chatInput, setChatInput] = useState('');
-  
-  const [chatHistory, setChatHistory] = useState([]);
+  const [showAnnotations, setShowAnnotations] = useState(false);
+  const [annotations, setAnnotations] = useState([]);
+  const [newNote, setNewNote] = useState('');
+  const [selectedTag, setSelectedTag] = useState('Key claim');
+  const [visualizationHtml, setVisualizationHtml] = useState(null);
   
   // Explanation state
   const [explainingId, setExplainingId] = useState(null);
@@ -137,14 +44,6 @@ export default function PaperDetailPage() {
   const [shareUrl, setShareUrl] = useState(null);
   const [isSharingLoading, setIsSharingLoading] = useState(false);
 
-  // Annotation state
-  const [showAnnotations, setShowAnnotations] = useState(false);
-  const [annotations, setAnnotations] = useState([]);
-  const [newNote, setNewNote] = useState('');
-  const [selectedTag, setSelectedTag] = useState('Key claim');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [visualizationHtml, setVisualizationHtml] = useState(null);
-  const chatEndRef = useRef(null);
   const params = useParams();
   const { id: paperId } = params;
   const { user } = useUser();
@@ -157,10 +56,24 @@ export default function PaperDetailPage() {
   const { data: paper, isLoading: paperLoading } = useDoc(paperRef);
 
   const summaryRef = useMemoFirebase(() => {
-    if (!user || !firestore || !paperId || !paper?.summaryId) return null;
+    if (!user || !firestore || !paperId || !paper?.summaryId) {
+      console.log('[FIREBASE] Summary ref null:', { hasUser: !!user, hasFirestore: !!firestore, hasPaperId: !!paperId, hasSummaryId: !!paper?.summaryId });
+      return null;
+    }
+    console.log('[FIREBASE] Loading summary from subcollection:', paper.summaryId);
     return doc(firestore, `users/${user.uid}/papers/${paperId}/summaries/${paper.summaryId}`);
   }, [user, firestore, paperId, paper?.summaryId]);
-  const { data: summary } = useDoc(summaryRef);
+  const { data: summary, isLoading: summaryLoading } = useDoc(summaryRef);
+
+  useEffect(() => {
+    if (summary) {
+      console.log('[FIREBASE] Summary loaded from subcollection:', Object.keys(summary).slice(0, 10));
+    } else if (summaryLoading) {
+      console.log('[FIREBASE] Summary is loading...');
+    } else {
+      console.log('[FIREBASE] Summary failed to load, checking paper.summary fallback');
+    }
+  }, [summary, summaryLoading]);
 
   const insightsRef = useMemoFirebase(() => {
     if (!user || !firestore || !paperId || !paper?.insightsId) return null;
@@ -174,10 +87,59 @@ export default function PaperDetailPage() {
   }, [user, firestore, paperId, paper?.knowledgeGraphId]);
   const { data: knowledgeGraph } = useDoc(kgRef);
   const baseSummary = summary || paper?.summary || null;
+  
+  useEffect(() => {
+    console.log('[SUMMARY] baseSummary source:', { fromSummarySubcollection: !!summary, fromPaperDoc: !!paper?.summary });
+    console.log('[SUMMARY] baseSummary structure:', baseSummary ? {
+      keys: Object.keys(baseSummary).slice(0, 15),
+      hasSummaryKey: !!baseSummary.summary,
+      hasExpert: !!baseSummary.expert,
+      hasPractitioner: !!baseSummary.practitioner,
+      hasBeginner: !!baseSummary.beginner,
+      hasTldr: !!baseSummary.tldr,
+    } : null);
+  }, [baseSummary, summary, paper?.summary]);
+  
   // DEEP RESOLVE: Checks for Expert summary in nested or flat structure
-  const resolvedSummary = (baseSummary?.summary?.expert || baseSummary?.summary?.practitioner) 
-    ? baseSummary.summary 
-    : (baseSummary?.expert || baseSummary?.practitioner ? baseSummary : baseSummary?.summary || baseSummary);
+  // This handles multiple possible structures:
+  // 1. { summary: { expert, practitioner, beginner } }  — from new Firestore doc
+  // 2. { expert, practitioner, beginner }  — from old papers
+  // 3. { tldr, sectionSummaries }  — from legacy format
+  const resolvedSummary = (() => {
+    if (!baseSummary) return null;
+    
+    // Check 1: Is there a nested summary.expert/practitioner/beginner?
+    if (baseSummary.summary?.expert || baseSummary.summary?.practitioner || baseSummary.summary?.beginner) {
+      return baseSummary.summary;
+    }
+    
+    // Check 2: Is it already flat with expert/practitioner/beginner?
+    if (baseSummary.expert || baseSummary.practitioner || baseSummary.beginner) {
+      return baseSummary;
+    }
+    
+    // Check 3: Is it legacy format (tldr + sectionSummaries)?
+    if (baseSummary.tldr || baseSummary.sectionSummaries) {
+      return baseSummary;
+    }
+    
+    // Fallback: just return it and let migration handle it
+    return baseSummary;
+  })();
+
+  useEffect(() => {
+    if (resolvedSummary) {
+      console.log('[DEBUG] resolvedSummary structure:', {
+        hasExpert: !!resolvedSummary.expert,
+        hasPractitioner: !!resolvedSummary.practitioner,
+        hasBeginner: !!resolvedSummary.beginner,
+        hasTldr: !!resolvedSummary.tldr,
+        hasSectionSummaries: !!resolvedSummary.sectionSummaries,
+        keys: Object.keys(resolvedSummary).slice(0, 10),
+        fullSummary: JSON.stringify(resolvedSummary).slice(0, 500),
+      });
+    }
+  }, [resolvedSummary]);
 
   const baseInsights = insights || paper?.insights || null;
   const resolvedInsights = baseInsights?.papers ? baseInsights : (baseInsights?.insights || baseInsights); 
@@ -189,16 +151,28 @@ export default function PaperDetailPage() {
   
   // UNIFIED DATA MAPPING LAYER
   // This ensures old papers (legacy schema) and new papers (Genkit schema) work identical.
-  const researchProblemVal = newRefSchema?.coreQuestion || resolvedInsights?.researchProblem || 'Not found';
-  const methodologyVal = newRefSchema?.methodology || resolvedInsights?.methodology || 'Not specified';
-  const evaluationMetricsArr = newRefSchema?.claims 
+  const researchProblemVal = newRefSchema?.coreQuestion || resolvedInsights?.researchProblem || resolvedSummary?.practitioner?.whatItsAbout || 'Not found';
+  const methodologyVal = newRefSchema?.methodology || resolvedInsights?.methodology || resolvedSummary?.expert?.breakdown?.methodology || 'Not specified';
+  
+  const evaluationMetricsArr = newRefSchema?.claims?.length
     ? newRefSchema.claims.map(c => `[${Math.round((c.confidence || 0) * 100)}%] ${c.text}`)
-    : (resolvedInsights?.evaluationMetrics || []);
-  const algorithmsModelsArr = newRefSchema?.concepts 
-    ? newRefSchema.concepts.filter(c => ['method', 'theory', 'model', 'algorithm'].includes(c.type?.toLowerCase())).map(c => c.label) 
-    : (resolvedInsights?.algorithmsModels || []);
-  const datasetsArr = newRefSchema?.sampleOrScope ? [newRefSchema.sampleOrScope] : (resolvedInsights?.datasetsUsed || []);
-  const keyResultsArr = newRefSchema?.conclusions || resolvedInsights?.keyResults || [];
+    : (resolvedInsights?.evaluationMetrics?.length ? resolvedInsights.evaluationMetrics : (resolvedSummary?.expert?.contributions || []));
+
+  const algorithmsModelsArr = newRefSchema?.concepts?.length
+    ? newRefSchema.concepts.filter(c => 
+        ['method', 'theory', 'model', 'algorithm', 'system', 'architecture', 'framework', 'infrastructure', 'technique']
+        .includes(c.type?.toLowerCase())
+      ).map(c => c.label) 
+    : (resolvedInsights?.algorithmsModels?.length ? resolvedInsights.algorithmsModels : (resolvedSummary?.practitioner?.technologies || []));
+
+  const datasetsArr = newRefSchema?.sampleOrScope 
+    ? [newRefSchema.sampleOrScope] 
+    : (resolvedInsights?.datasetsUsed?.length ? resolvedInsights.datasetsUsed : (resolvedSummary?.practitioner?.technologies?.filter(t => t.toLowerCase().includes('data')) || []));
+
+  const keyResultsArr = newRefSchema?.conclusions?.length 
+    ? newRefSchema.conclusions 
+    : (resolvedInsights?.keyResults?.length ? resolvedInsights.keyResults : (resolvedSummary?.expert?.breakdown?.results ? [resolvedSummary.expert.breakdown.results] : []));
+
   const replicationChecklistArr = newRefSchema?.replicationChecklist || resolvedInsights?.replicationChecklist || [];
   const topicsArr = newRefSchema?.topics || resolvedInsights?.topics || [];
 
@@ -353,58 +327,332 @@ export default function PaperDetailPage() {
     );
   };
 
+  // Migration helper: convert legacy format to new nested structure
+  const migrateLegacySummary = (legacy) => {
+    if (!legacy) {
+      console.log('[MIGRATION] No legacy summary to migrate');
+      return null;
+    }
+    
+    // If already in new format, return as-is
+    if (legacy.expert && (legacy.expert.abstract || legacy.expert.breakdown)) {
+      console.log('[MIGRATION] Already new format - has expert with structure');
+      return legacy;
+    }
+    if (legacy.practitioner && (legacy.practitioner.whatItsAbout || legacy.practitioner.highlights)) {
+      console.log('[MIGRATION] Already new format - has practitioner with structure');
+      return legacy;
+    }
+    if (legacy.beginner && (legacy.beginner.plainEnglish || legacy.beginner.parts)) {
+      console.log('[MIGRATION] Already new format - has beginner with structure');
+      return legacy;
+    }
+
+    console.log('[MIGRATION] Detected legacy format, converting...', Object.keys(legacy).slice(0, 10));
+
+    // Extract from legacy format - try multiple possible structures
+    let sections = legacy.sectionSummaries || legacy.sections || [];
+    let tldr = legacy.tldr || legacy.summary || legacy.abstract || '';
+    
+    // Fallback: if tldr is empty, use first section or paper fullText
+    if (!tldr && sections.length > 0) {
+      tldr = sections.map(s => `${s.title}: ${s.summary}`).join('\n\n');
+    }
+
+    console.log('[MIGRATION] Extracted tldr:', tldr.slice(0, 100), 'sections:', sections.length);
+    
+    // Create section map for easier access
+    const sectionMap = {};
+    sections.forEach(s => {
+      const title = (s.title || '').toLowerCase().trim();
+      if (title && s.summary) {
+        sectionMap[title] = s.summary;
+      }
+    });
+
+    // Map sections to multiple possible names
+    const getSection = (names) => {
+      for (const name of names) {
+        if (sectionMap[name]) return sectionMap[name];
+      }
+      return '';
+    };
+
+    // Use TLDR as primary content, sections as enrichment
+    const intro = getSection(['introduction', 'background', 'intro', 'overview']) || tldr;
+    const relatedWork = getSection(['related work', 'literature', 'literature review', 'related']) || tldr.substring(0, 200);
+    const methodology = getSection(['methodology', 'methods', 'approach', 'method']) || tldr.substring(100, 300);
+    const results = getSection(['results', 'findings', 'evaluation', 'experiments']) || tldr.substring(150, 350);
+    const conclusion = getSection(['conclusion', 'conclusions', 'conclusion and future work', 'conclusions and future work']) || tldr.substring(200, 400);
+
+    // Extract tech/keywords from sections or tldr
+    const extractKeywords = (text) => {
+      const common = ['algorithm', 'model', 'network', 'framework', 'system', 'method', 'approach', 'technique', 'tool', 'platform', 'dataset', 'benchmark'];
+      const found = [];
+      const lower = (text || '').toLowerCase();
+      common.forEach(keyword => {
+        if (lower.includes(keyword) && !found.includes(keyword)) {
+          found.push(keyword.charAt(0).toUpperCase() + keyword.slice(1));
+        }
+      });
+      return found.length > 0 ? found : ['General Methodology'];
+    };
+
+    const technologies = extractKeywords(tldr + ' ' + methodology);
+    const useInPractice = [
+      `Apply this work to practical scenarios: ${tldr.substring(0, 120)}`,
+      conclusion.substring(0, 150) || 'Provides practical insights'
+    ];
+    const expertAbstract = tldr ? `Technical overview: ${tldr}` : 'Summary generated from legacy format';
+    const practitionerWhatItsAbout = tldr ? `This paper is about: ${tldr}` : 'Summary generated from legacy format';
+    const beginnerPlainEnglish = tldr ? `In simple terms: ${tldr}` : 'Summary generated from legacy format';
+
+    // Migrate to new format with reasonable defaults
+    const migrated = {
+      tldr, // Preserve original TLDR for backward compatibility
+      expert: {
+        abstract: expertAbstract,
+        breakdown: {
+          introduction: intro,
+          relatedWork: relatedWork,
+          methodology: methodology,
+          results: results,
+          conclusion: conclusion,
+        },
+        contributions: tldr ? [`Key contribution: ${tldr.substring(0, 120)}`] : [],
+        limitations: ['Generated from legacy format - limited detail'],
+        openQuestions: ['What are the next experiments needed?'],
+      },
+      practitioner: {
+        whatItsAbout: practitionerWhatItsAbout,
+        highlights: {
+          introduction: intro,
+          relatedWork: relatedWork,
+          methodology: methodology,
+          results: results,
+          conclusion: conclusion,
+        },
+        actionableContributions: [
+          tldr ? `Use this paper to inform ${tldr.substring(0, 80)}` : '',
+          conclusion ? `Translate findings into practice by ${conclusion.substring(0, 80)}` : '',
+        ].filter(Boolean),
+        technologies: technologies,
+        useInPractice: useInPractice,
+      },
+      beginner: {
+        plainEnglish: beginnerPlainEnglish,
+        parts: {
+          introduction: intro,
+          theIdea: methodology || 'Core approach of the research',
+          didItWork: results || 'Results and outcomes',
+          takeaway: conclusion || 'Main takeaway from research',
+        },
+        importantThings: [
+          beginnerPlainEnglish,
+          conclusion ? conclusion.substring(0, 100) : '',
+          methodology ? methodology.substring(0, 100) : '',
+        ].filter(x => x),
+        jargon: [],
+        complexityRating: 3,
+        verdict: 'This paper was imported from legacy format.',
+      },
+    };
+
+    console.log('[MIGRATION] Conversion complete, migrated object:', {
+      hasExpert: !!migrated.expert,
+      hasPractitioner: !!migrated.practitioner,
+      hasBeginner: !!migrated.beginner,
+    });
+
+    return migrated;
+  };
+
+  // Use migrated summary if needed
+  const displaySummary = (() => {
+    // First check: does it already have new format?
+    if (resolvedSummary?.expert?.abstract || resolvedSummary?.practitioner?.whatItsAbout || resolvedSummary?.beginner?.plainEnglish) {
+      console.log('[DISPLAY] Using existing new format summary');
+      return resolvedSummary;
+    }
+    
+    // Second check: try migrating legacy format
+    const migrated = migrateLegacySummary(resolvedSummary);
+    if (migrated?.expert?.abstract || migrated?.practitioner?.whatItsAbout || migrated?.beginner?.plainEnglish) {
+      console.log('[DISPLAY] Using migrated legacy summary');
+      return migrated;
+    }
+    
+    // Third fallback: create summary from paper fullText if everything else is empty
+    if (paper?.fullText) {
+      console.log('[DISPLAY] Creating summary from paper fullText');
+      const fullText = paper.fullText;
+      
+      // Extract key sections from fullText
+      const textLower = fullText.toLowerCase();
+      const abstractMatch = fullText.match(/abstract[\s\n]*([^]*?)(introduction|keywords|1\.|§)/i);
+      const introMatch = fullText.match(/introduction[\s\n]*([^]*?)(related work|literature|methodology|2\.|§)/i);
+      const relatedMatch = fullText.match(/(related work|literature|prior art)[\s\n]*([^]*?)(methodology|methods|3\.|§)/i);
+      const methodMatch = fullText.match(/(methodology|methods|approach)[\s\n]*([^]*?)(results|evaluation|4\.|§)/i);
+      const resultsMatch = fullText.match(/(results|evaluation|findings)[\s\n]*([^]*?)(conclusion|discussion|5\.|§)/i);
+      const conclusionMatch = fullText.match(/(conclusion|conclusions|discussion)[\s\n]*([^]*?)($|references|bibliography)/i);
+      
+      const abstract = abstractMatch ? abstractMatch[1].trim().substring(0, 300) : fullText.substring(0, 300);
+      const intro = introMatch ? introMatch[1].trim().substring(0, 200) : abstract.substring(0, 200);
+      const related = relatedMatch ? relatedMatch[2].trim().substring(0, 200) : '';
+      const methods = methodMatch ? methodMatch[2].trim().substring(0, 250) : '';
+      const results = resultsMatch ? resultsMatch[2].trim().substring(0, 250) : '';
+      const conclusion = conclusionMatch ? conclusionMatch[2].trim().substring(0, 250) : '';
+      
+      const expertAbstract = abstract ? `Technical overview: ${abstract}` : 'Summary extracted from paper text';
+      const practitionerWhatItsAbout = abstract ? `This paper is about: ${abstract}` : 'Summary extracted from paper text';
+      const beginnerPlainEnglish = abstract ? `In simple terms: ${abstract}` : 'Summary extracted from paper text';
+
+      return {
+        tldr: abstract,
+        expert: {
+          abstract: expertAbstract,
+          breakdown: {
+            introduction: intro,
+            relatedWork: related,
+            methodology: methods,
+            results: results,
+            conclusion: conclusion,
+          },
+          contributions: abstract ? [`Key contribution: ${abstract.substring(0, 120)}`] : [],
+          limitations: [],
+          openQuestions: [],
+        },
+        practitioner: {
+          whatItsAbout: practitionerWhatItsAbout,
+          highlights: {
+            introduction: intro,
+            relatedWork: related,
+            methodology: methods,
+            results: results,
+            conclusion: conclusion,
+          },
+          actionableContributions: abstract ? [`Apply this result by ${abstract.substring(0, 120)}`] : [],
+          technologies: [],
+          useInPractice: abstract ? [`Use this paper to inform ${abstract.substring(0, 100)}`] : [],
+        },
+        beginner: {
+          plainEnglish: beginnerPlainEnglish,
+          parts: {
+            introduction: intro,
+            theIdea: methods || 'Paper methodology',
+            didItWork: results || 'Results of the study',
+            takeaway: conclusion || 'Main conclusions',
+          },
+          importantThings: [beginnerPlainEnglish, conclusion ? conclusion.substring(0, 100) : ''].filter(x => x),
+          jargon: [],
+          complexityRating: 3,
+          verdict: 'Summary extracted from paper text.',
+        },
+      };
+    }
+    
+    // Final fallback: completely empty summary
+    console.log('[DISPLAY] No summary data available, returning minimal structure');
+    return {
+      tldr: 'No summary available',
+      expert: {
+        abstract: 'No summary available',
+        breakdown: { introduction: '', relatedWork: '', methodology: '', results: '', conclusion: '' },
+        contributions: [],
+        limitations: [],
+        openQuestions: [],
+      },
+      practitioner: {
+        whatItsAbout: 'No summary available',
+        highlights: { introduction: '', relatedWork: '', methodology: '', results: '', conclusion: '' },
+        actionableContributions: [],
+        technologies: [],
+        useInPractice: [],
+      },
+      beginner: {
+        plainEnglish: 'No summary available',
+        parts: { introduction: '', theIdea: '', didItWork: '', takeaway: '' },
+        importantThings: [],
+        jargon: [],
+        complexityRating: 3,
+        verdict: 'No summary data found.',
+      },
+    };
+  })();
+
   const getSummaryTextByLevel = () => {
-    if (!resolvedSummary) return <p>Generating summary...</p>;
+    if (summaryLoading && !displaySummary) {
+      console.log('[RENDER] Summary is still loading...');
+      return (
+        <div className="p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-aurora-blue" />
+          <p className="text-aurora-text-mid">Loading summary...</p>
+        </div>
+      );
+    }
+    
+    if (!displaySummary) {
+      console.log('[RENDER] No displaySummary available');
+      return <p className="text-aurora-text-mid">Summary is loading or not available.</p>;
+    }
     
     if (summaryLevel === 'expert') {
-      if (resolvedSummary.expert) return renderExpertSummary(resolvedSummary.expert);
-      return <div className="p-4 bg-amber-50 border-2 border-amber-500 rounded-xl mb-4 text-amber-900 whitespace-pre-wrap">⚠️ LEGACY FORMAT DETECTED: This paper was summarized using the old AI engine. Please go to the Dashboard and upload the document again to generate the new layout. The old format cannot be converted automatically.<br/><br/>{(resolvedSummary.sectionSummaries?.map(s => `[${s.title}]\n${s.summary}`).join('\n\n') || resolvedSummary.tldr)}</div>;
+      if (displaySummary.expert?.abstract && displaySummary.expert.abstract !== 'No summary available') {
+        return renderExpertSummary(displaySummary.expert);
+      }
+      // Show fallback with whatever data we have
+      console.log('[RENDER] Expert summary missing, showing available data');
+      return (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-900">
+          <p className="font-semibold mb-2">Paper Summary</p>
+          <p className="text-sm">{displaySummary.expert?.abstract || displaySummary.tldr || 'Summary not yet generated'}</p>
+          {displaySummary.expert?.breakdown?.methodology && (
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <p className="text-xs font-semibold mb-1">Methodology</p>
+              <p className="text-xs">{displaySummary.expert.breakdown.methodology}</p>
+            </div>
+          )}
+        </div>
+      );
     }
     if (summaryLevel === 'practitioner') {
-      if (resolvedSummary.practitioner) return renderPractitionerSummary(resolvedSummary.practitioner);
-      return <div className="p-4 bg-amber-50 border-2 border-amber-500 rounded-xl mb-4 text-amber-900">⚠️ LEGACY FORMAT DETECTED. Upload again.<br/><br/>{resolvedSummary.tldr}</div>;
+      if (displaySummary.practitioner?.whatItsAbout && displaySummary.practitioner.whatItsAbout !== 'No summary available') {
+        return renderPractitionerSummary(displaySummary.practitioner);
+      }
+      console.log('[RENDER] Practitioner summary missing, showing available data');
+      return (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-900">
+          <p className="font-semibold mb-2">What This Paper Is About</p>
+          <p className="text-sm">{displaySummary.practitioner?.whatItsAbout || displaySummary.tldr || 'Summary not yet generated'}</p>
+          {displaySummary.practitioner?.technologies?.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-green-200">
+              <p className="text-xs font-semibold mb-1">Technologies</p>
+              <div className="flex flex-wrap gap-1">
+                {displaySummary.practitioner.technologies.map((tech, i) => (
+                  <span key={i} className="text-xs bg-green-100 px-2 py-1 rounded">{tech}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
     }
     if (summaryLevel === 'beginner') {
-      if (resolvedSummary.beginner) return renderBeginnerSummary(resolvedSummary.beginner);
-      return <div className="p-4 bg-amber-50 border-2 border-amber-500 rounded-xl mb-4 text-amber-900">⚠️ LEGACY FORMAT DETECTED. Upload again.<br/><br/>{resolvedSummary.tldr}</div>;
+      if (displaySummary.beginner?.plainEnglish && displaySummary.beginner.plainEnglish !== 'No summary available') {
+        return renderBeginnerSummary(displaySummary.beginner);
+      }
+      console.log('[RENDER] Beginner summary missing, showing available data');
+      return (
+        <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900">
+          <p className="font-semibold mb-2">In Simple Terms</p>
+          <p className="text-sm">{displaySummary.beginner?.plainEnglish || displaySummary.tldr || 'Summary not yet generated'}</p>
+        </div>
+      );
     }
     
-    return null;
+    return <p className="text-aurora-text-mid">No summary available for this level.</p>;
   };
 
-
-  const askQuestion = async (questionText) => {
-    if (!questionText || chatLoading) return;
-    const currentInput = questionText.trim();
-    if (!currentInput) return;
-
-    setChatInput('');
-    const updatedHistory = [...chatHistory, { isUser: true, content: currentInput }];
-    setChatHistory(updatedHistory);
-    setChatLoading(true);
-    try {
-      // Build a compact structured context from extracted insights (~3k chars, ~750 tokens)
-      const context = buildQnAContext(paper, resolvedSummary, resolvedInsights);
-      const answer = await askQuestionContext(context, currentInput);
-      setChatHistory([...updatedHistory, { isUser: false, content: answer }]);
-    } catch (err) {
-      console.error('[Q&A]', err);
-      const errStr = err?.message || '';
-      let msg = "Sorry, I couldn't process your request. Please try again.";
-      
-      if (errStr.includes('429') || errStr.toLowerCase().includes('rate limit')) {
-        msg = "🚀 All primary AI nodes are at capacity. We're attempting to scale, but please wait a minute or try again later.";
-      } else if (errStr.includes('413') || errStr.toLowerCase().includes('token')) {
-        msg = "The paper context is too large for this specific question. Try asking about a specific section.";
-      } else if (errStr.toLowerCase().includes('validation') || errStr.toLowerCase().includes('format')) {
-         msg = "The AI returned an invalid response. We've logged this to improve the parser.";
-      }
-      setChatHistory([...updatedHistory, { isUser: false, content: msg }]);
-    } finally {
-      setChatLoading(false);
-      addMilestone('qna_asked');
-    }
-  };
 
   const handleExplain = async (id, text) => {
     if (explanations[id] || explainingId === id) return;
@@ -526,19 +774,10 @@ export default function PaperDetailPage() {
     localStorage.setItem(`notes_${paperId}`, JSON.stringify(updated));
   };
 
-  // Auto-scroll to the newest message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatLoading]);
-
-  useEffect(() => {
-    if (paper && chatHistory.length === 0) {
-      setChatHistory([
-        { isUser: false, content: `Hello! I've loaded "${paper.title}". What would you like to know about this paper?`, confidence: null, citations: null }
-      ]);
-    }
-  }, [paper]);
-
+  const qnaContext = useMemo(() => {
+    if (!paper) return '';
+    return buildQnAContext(paper, baseSummary, insights);
+  }, [paper, baseSummary, insights]);
 
   if (paperLoading) return <div className="p-8 text-center text-aurora-text-mid font-semibold">Loading paper...</div>;
   if (!paper) return <div className="p-8 text-center text-aurora-rose font-semibold">Paper Not Found</div>;
@@ -931,62 +1170,7 @@ export default function PaperDetailPage() {
 
         {/* Q&A TAB */}
         {activeTab === 'qna' && (
-          <div className="flex flex-col h-[600px] bg-[#F5F7FF] rounded-[24px] border border-aurora-border shadow-sm overflow-hidden relative">
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col">
-              <div className="flex items-center justify-center mb-8">
-                 <div className="bg-white px-4 py-1.5 rounded-full text-xs font-semibold text-aurora-text-low shadow-sm border border-aurora-border">
-                   Session started • Context: Full Paper
-                 </div>
-              </div>
-              
-              {chatHistory.map((msg, i) => (
-                <ChatBubble key={i} message={msg} isUser={msg.isUser} />
-              ))}
-              {/* Typing indicator while loading */}
-              {chatLoading && (
-                <div className="flex items-center gap-2 self-start">
-                  <div className="bg-white border border-aurora-border rounded-[18px] rounded-tl-sm px-5 py-3.5 shadow-sm flex items-center gap-1.5">
-                    {[0, 1, 2].map(i => (
-                      <span key={i} className="w-2 h-2 bg-aurora-blue/60 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="p-4 bg-white border-t border-aurora-border">
-               <div className="flex gap-2 w-full max-w-4xl mx-auto overflow-x-auto pb-3 scrollbar-hide">
-                 <button onClick={() => askQuestion('What datasets were used?')} className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">What datasets were used?</button>
-                 <button onClick={() => askQuestion('What are the limitations?')} className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">What are the limitations?</button>
-                 <button onClick={() => askQuestion('Summarize the results.')} className="whitespace-nowrap px-4 py-2 rounded-full bg-aurora-surface-2 text-xs font-semibold text-aurora-text-mid hover:bg-aurora-surface-3 transition-colors border border-aurora-border/50 shadow-sm">Summarize the results</button>
-               </div>
-               
-               <div className="relative w-full max-w-4xl mx-auto flex items-end gap-2">
-                 <Input 
-                   className="h-14 rounded-[20px] bg-aurora-surface-1 border border-aurora-border shadow-inner text-base pl-6 pr-14"
-                   placeholder="Ask anything about this paper..."
-                   value={chatInput}
-                   onChange={(e) => setChatInput(e.target.value)}
-                   disabled={chatLoading}
-                   onKeyDown={async (e) => {
-                     if (e.key === 'Enter' && chatInput && !chatLoading) {
-                       e.preventDefault();
-                       await askQuestion(chatInput);
-                     }
-                   }}
-                 />
-                 <Button 
-                   size="icon" 
-                   className="absolute right-2 top-2 h-10 w-10 shrink-0 bg-gradient-to-r from-aurora-blue to-aurora-violet rounded-full shadow-md disabled:opacity-50"
-                   disabled={chatLoading}
-                   onClick={() => askQuestion(chatInput)}
-                 >
-                    {chatLoading ? <Sparkles className="h-4 w-4 animate-spin" /> : <Send className="h-5 w-5 ml-0.5" />}
-                 </Button>
-               </div>
-            </div>
-          </div>
+          <QnaView paperId={paperId} context={qnaContext} messages={paper?.chatHistory || []} />
         )}
       </div>
     </div>

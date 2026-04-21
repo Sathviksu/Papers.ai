@@ -10,6 +10,72 @@ import { Badge } from '@/components/aurora/Badge';
 import { FileText, Sparkles, UploadCloud, ArrowRight, Clock, CheckCircle2, MessageSquare, Database, Plus, Library } from 'lucide-react';
 import Link from 'next/link';
 
+function formatRelativeTime(date) {
+  if (!date) return '—';
+  const d = new Date(date);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - d) / 1000);
+
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 172800) return 'Yesterday';
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  
+  return d.toLocaleDateString();
+}
+
+function getRecentActivities(papers) {
+  const activities = [];
+  
+  papers.forEach(p => {
+    const paperName = p.title || 'Untitled Paper';
+    const baseDate = p.uploadDate || p.createdAt || new Date().toISOString();
+    
+    // 1. Uploaded
+    activities.push({
+      id: `upload-${p.id}`,
+      type: 'UPLOADED',
+      title: 'Paper Uploaded',
+      subtitle: paperName,
+      date: baseDate,
+      color: 'bg-aurora-blue',
+      icon: UploadCloud,
+      paperId: p.id
+    });
+    
+    // 2. Processed
+    if (p.processingStatus === 'completed' || p.status === 'completed') {
+      activities.push({
+        id: `process-${p.id}`,
+        type: 'PROCESSED',
+        title: 'Analysis Completed',
+        subtitle: paperName,
+        date: p.processedAt || baseDate, 
+        color: 'bg-emerald-500',
+        icon: CheckCircle2,
+        paperId: p.id
+      });
+    }
+    
+    // 3. Knowledge Graph
+    if (p.knowledgeGraphId) {
+      activities.push({
+        id: `kg-${p.id}`,
+        type: 'KG_GENERATED',
+        title: 'Graph Generated',
+        subtitle: paperName,
+        date: baseDate,
+        color: 'bg-aurora-violet',
+        icon: Database,
+        paperId: p.id
+      });
+    }
+  });
+  
+  return activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
 export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -18,7 +84,8 @@ export default function DashboardPage() {
     if (!user || !firestore) return null;
     return query(
       collection(firestore, `users/${user.uid}/papers`),
-      orderBy('uploadDate', 'desc')
+      orderBy('uploadDate', 'desc'),
+      limit(20)
     );
   }, [user, firestore]);
 
@@ -30,6 +97,8 @@ export default function DashboardPage() {
     (p) => new Date(p.uploadDate) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
   ).length;
   const summariesGenerated = displayPapers.filter((p) => p.summaryId).length;
+  
+  const activities = getRecentActivities(displayPapers).slice(0, 6);
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
@@ -141,37 +210,28 @@ export default function DashboardPage() {
             
             <div className="relative pl-6 space-y-8 before:absolute before:inset-0 before:ml-[11px] before:h-full before:w-[2px] before:bg-gradient-to-b before:from-aurora-border before:to-transparent z-10">
               
-              <div className="relative">
-                <div className="absolute -left-[29.5px] top-1 flex items-center justify-center w-[18px] h-[18px] rounded-full border-[3px] border-white bg-emerald-500 shadow-sm" />
-                <div className="flex items-start gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-aurora-text-high leading-none">Paper Processed</p>
-                    <p className="text-xs text-aurora-text-mid mt-1.5">Attention Is All You Need</p>
-                    <p className="text-[10px] uppercase font-bold text-aurora-text-low mt-2">2 hours ago</p>
+              {isLoading ? (
+                <div className="text-sm text-aurora-text-low py-4">Loading activity...</div>
+              ) : activities.length === 0 ? (
+                <div className="text-sm text-aurora-text-low py-4 italic">No recent activity detected.</div>
+              ) : (
+                activities.map((act) => (
+                  <div key={act.id} className="relative group">
+                    <div className={`absolute -left-[29.5px] top-1 flex items-center justify-center w-[18px] h-[18px] rounded-full border-[3px] border-white ${act.color} shadow-sm group-hover:scale-110 transition-transform`} />
+                    <div className="flex items-start gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-aurora-text-high leading-none group-hover:text-aurora-blue transition-colors">
+                          <Link href={`/papers/${act.paperId}`}>{act.title}</Link>
+                        </p>
+                        <p className="text-xs text-aurora-text-mid mt-1.5 line-clamp-1">{act.subtitle}</p>
+                        <p className="text-[10px] uppercase font-bold text-aurora-text-low mt-2 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" /> {formatRelativeTime(act.date)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="absolute -left-[29.5px] top-1 flex items-center justify-center w-[18px] h-[18px] rounded-full border-[3px] border-white bg-aurora-violet shadow-sm" />
-                <div className="flex items-start gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-aurora-text-high leading-none">Summary Generated</p>
-                    <p className="text-xs text-aurora-text-mid mt-1.5">Deep Residual Learning</p>
-                    <p className="text-[10px] uppercase font-bold text-aurora-text-low mt-2">Yesterday</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="relative">
-                 <div className="absolute -left-[29.5px] top-1 flex items-center justify-center w-[18px] h-[18px] rounded-full border-[3px] border-white bg-aurora-blue shadow-sm" />
-                <div className="flex items-start gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-aurora-text-high leading-none">Paper Uploaded</p>
-                    <p className="text-[10px] uppercase font-bold text-aurora-text-low mt-1.5">2 days ago</p>
-                  </div>
-                </div>
-              </div>
+                ))
+              )}
 
             </div>
           </Card>

@@ -58,6 +58,17 @@ export function setCachedPaper(text, { summary, insights, knowledgeGraph }) {
   }
 }
 
+/** Remove a single cached paper result by its text fingerprint. */
+export function removeCachedPaper(text) {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = paperCacheKey(text);
+    localStorage.removeItem(key);
+  } catch {
+    // ignore localStorage failures
+  }
+}
+
 /** Remove all cached paper entries (useful for a "clear cache" button). */
 export function clearPaperCache() {
   if (typeof window === 'undefined') return;

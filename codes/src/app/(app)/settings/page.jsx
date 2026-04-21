@@ -1,9 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/aurora/Button';
 import { Input } from '@/components/aurora/Input';
 import { Card, CardTitle } from '@/components/aurora/Card';
-import { User, Bell, Key, CreditCard, Shield, Save } from 'lucide-react';
+import { User, Bell, Key, CreditCard, Shield, Save, CheckCircle2, Loader2 } from 'lucide-react';
 
 const Toggle = ({ active, onClick }) => (
   <button 
@@ -15,13 +18,64 @@ const Toggle = ({ active, onClick }) => (
 );
 
 export default function SettingsPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
   const [activeTab, setActiveTab] = useState('account');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: profile, isLoading } = useDoc(userDocRef);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    institution: '',
+    location: '',
+    bio: '',
+    handle: ''
+  });
+
   const [toggles, setToggles] = useState({
     emailNotifs: true,
     weeklyDigest: false,
     autoExtract: true,
     publicProfile: false
   });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || user?.displayName || '',
+        institution: profile.institution || '',
+        location: profile.location || '',
+        bio: profile.bio || '',
+        handle: profile.handle || user?.email?.split('@')[0] || ''
+      });
+    }
+  }, [profile, user]);
+
+  const handleSaveChanges = async () => {
+    if (!user || !firestore) return;
+    setIsSaving(true);
+    setSaveSuccess(false);
+
+    try {
+      await setDoc(userDocRef, {
+        ...formData,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const tabs = [
     { id: 'account', label: 'Account Details', icon: User },
@@ -65,28 +119,76 @@ export default function SettingsPage() {
                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <CardTitle className="text-2xl mb-6 font-heading font-bold">Account Details</CardTitle>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex flex-col gap-2 relative">
-                      <label className="text-sm font-bold text-aurora-text-high ml-1">First Name</label>
-                      <Input defaultValue="Dr. John" className="bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" />
+                    <div className="flex flex-col gap-2 relative md:col-span-2">
+                      <label className="text-sm font-bold text-aurora-text-high ml-1">Full Name</label>
+                      <Input 
+                        value={formData.name} 
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        className="bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" 
+                      />
                     </div>
                     <div className="flex flex-col gap-2 relative">
-                      <label className="text-sm font-bold text-aurora-text-high ml-1">Last Name</label>
-                      <Input defaultValue="Doe" className="bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" />
+                      <label className="text-sm font-bold text-aurora-text-high ml-1">Profile Handle</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-aurora-text-low font-bold">@</span>
+                        <Input 
+                          value={formData.handle}
+                          onChange={(e) => setFormData({...formData, handle: e.target.value})}
+                          className="pl-9 bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" 
+                        />
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-2 md:col-span-2 relative">
+                    <div className="flex flex-col gap-2 relative">
+                      <label className="text-sm font-bold text-aurora-text-high ml-1">Institution</label>
+                      <Input 
+                        value={formData.institution}
+                        onChange={(e) => setFormData({...formData, institution: e.target.value})}
+                        className="bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" 
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2 relative md:col-span-2">
                       <label className="text-sm font-bold text-aurora-text-high ml-1 flex items-center justify-between">
                          Email Address <span className="text-xs text-aurora-blue bg-aurora-blue/10 px-2 py-0.5 rounded-md font-bold">Verified</span>
                       </label>
-                      <Input defaultValue="researcher@university.edu" className="bg-aurora-surface-2 border-aurora-border h-[52px] text-aurora-text-mid cursor-not-allowed" disabled />
+                      <Input value={user?.email || ''} className="bg-aurora-surface-2 border-aurora-border h-[52px] text-aurora-text-mid cursor-not-allowed" disabled />
                     </div>
-                    <div className="flex flex-col gap-2 md:col-span-2 relative">
-                      <label className="text-sm font-bold text-aurora-text-high ml-1">Institution</label>
-                      <Input defaultValue="Stanford University" className="bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" />
+                    <div className="flex flex-col gap-2 relative md:col-span-2">
+                      <label className="text-sm font-bold text-aurora-text-high ml-1">Location</label>
+                      <Input 
+                        value={formData.location}
+                        onChange={(e) => setFormData({...formData, location: e.target.value})}
+                        className="bg-aurora-surface-1 border-aurora-border h-[52px] shadow-inner focus-visible:ring-aurora-blue/30" 
+                        placeholder="e.g. California, USA or Remote"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2 relative md:col-span-2">
+                      <label className="text-sm font-bold text-aurora-text-high ml-1">Bio / About Me</label>
+                      <textarea 
+                        value={formData.bio}
+                        onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                        className="bg-aurora-surface-1 border border-aurora-border rounded-xl p-4 min-h-[120px] shadow-inner focus-visible:ring-aurora-blue/30 outline-none text-aurora-text-high font-medium text-sm transition-all"
+                        placeholder="Tell us about your research interests..."
+                      />
                     </div>
                  </div>
-                 <div className="mt-10 pt-8 border-t border-aurora-border/50 flex justify-end">
-                   <Button variant="gradient" className="h-14 px-10 rounded-full font-bold shadow-md hover:shadow-lg transition-all active:scale-95 text-base">
-                     <Save className="w-5 h-5 mr-2" /> Save Changes
+                 <div className="mt-10 pt-8 border-t border-aurora-border/50 flex justify-end items-center gap-4">
+                   {saveSuccess && (
+                     <span className="text-emerald-600 font-bold flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                       <CheckCircle2 className="w-5 h-5" /> Changes Saved
+                     </span>
+                   )}
+                   <Button 
+                    variant="gradient" 
+                    className="h-14 px-10 rounded-full font-bold shadow-md hover:shadow-lg transition-all active:scale-95 text-base disabled:opacity-70"
+                    onClick={handleSaveChanges}
+                    disabled={isSaving}
+                   >
+                     {isSaving ? (
+                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                     ) : (
+                       <Save className="w-5 h-5 mr-2" />
+                     )}
+                     {isSaving ? 'Saving...' : 'Save Changes'}
                    </Button>
                  </div>
                </div>

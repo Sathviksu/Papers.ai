@@ -1,15 +1,51 @@
 'use client';
-import { useUser } from '@/firebase';
+import Link from 'next/link';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { doc, collection, query } from 'firebase/firestore';
 import { Card } from '@/components/aurora/Card';
 import { Button } from '@/components/aurora/Button';
 import { Badge } from '@/components/aurora/Badge';
-import { Mail, Briefcase, MapPin, Share2, Edit3, Award, FileText, Zap } from 'lucide-react';
+import { Mail, Briefcase, MapPin, Share2, Edit3, Award, FileText, Zap, User as UserIcon, Loader2 } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user } = useUser();
-  const displayName = user?.displayName || 'Dr. Researcher';
-  const email = user?.email || 'researcher@university.edu';
-  
+  const firestore = useFirestore();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+  const { data: profile, isLoading: profileLoading } = useDoc(userDocRef);
+
+  const papersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, `users/${user.uid}/papers`));
+  }, [user, firestore]);
+  const { data: papers, isLoading: papersLoading } = useCollection(papersQuery);
+
+  const displayName = profile?.name || user?.displayName || 'Research Enthusiast';
+  const email = user?.email || profile?.email || '';
+  const institution = profile?.institution || 'Academic Institution';
+  const location = profile?.location || 'Remote';
+  const bio = profile?.bio || 'Passionate about advancing human knowledge through deep research and AI-driven insights.';
+  const website = profile?.website || '';
+  const handle = profile?.handle || user?.email?.split('@')[0] || 'researcher';
+
+  const papersProcessed = papers?.length || 0;
+  const kgCount = papers?.filter(p => p.knowledgeGraphId || p.knowledgeGraph).length || 0;
+  const isPro = profile?.isPro || false;
+
+  if (!user && !profileLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <UserIcon className="w-16 h-16 text-aurora-border mb-4" />
+        <h2 className="text-2xl font-bold text-aurora-text-high">Please sign in to view your profile</h2>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col w-full max-w-5xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
        
@@ -42,28 +78,36 @@ export default function ProfilePage() {
              {/* Actions */}
              <div className="absolute top-6 right-6 md:right-10 flex gap-3">
                 <Button variant="outline" className="border-aurora-border bg-white rounded-[16px] shadow-sm font-bold"><Share2 className="w-4 h-4 mr-2 text-aurora-blue" /> Share</Button>
-                <Button variant="gradient" className="rounded-[16px] font-bold shadow-md"><Edit3 className="w-4 h-4 mr-2" /> Edit Profile</Button>
+                <Link href="/settings">
+                   <Button variant="gradient" className="rounded-[16px] font-bold shadow-md"><Edit3 className="w-4 h-4 mr-2" /> Edit Profile</Button>
+                </Link>
              </div>
 
              {/* Info */}
              <div className="flex flex-col mt-4 md:mt-2">
                <div className="flex flex-col md:flex-row md:items-center gap-3">
                  <h1 className="text-3xl lg:text-4xl font-extrabold font-heading text-aurora-text-high tracking-tight">{displayName}</h1>
-                 <Badge variant="success" className="bg-emerald-100 text-emerald-800 shadow-sm border-emerald-200 mt-2 md:mt-1 self-start md:self-auto py-1 px-3">
-                    <Zap className="w-3.5 h-3.5 mr-1.5 fill-emerald-500" /> Pro Member
-                 </Badge>
+                 {isPro ? (
+                   <Badge variant="success" className="bg-emerald-100 text-emerald-800 shadow-sm border-emerald-200 mt-2 md:mt-1 self-start md:self-auto py-1 px-3">
+                      <Zap className="w-3.5 h-3.5 mr-1.5 fill-emerald-500" /> Pro Member
+                   </Badge>
+                 ) : (
+                   <Badge variant="neutral" className="bg-slate-100 text-slate-600 shadow-sm border-slate-200 mt-2 md:mt-1 self-start md:self-auto py-1 px-3">
+                      Free Plan
+                   </Badge>
+                 )}
                </div>
                
                <p className="text-lg text-aurora-text-mid font-medium mt-1 mb-6 flex items-center gap-2">
-                 @dr_researcher
+                 @{handle}
                </p>
 
                <div className="flex flex-wrap items-center gap-6 mt-2">
                  <div className="flex items-center gap-2 pt-1 pb-1 px-4 rounded-full bg-aurora-surface-1 border border-aurora-border text-aurora-text-mid text-sm font-semibold shadow-inner">
-                   <Briefcase className="w-4 h-4 text-aurora-blue" /> Stanford University
+                   <Briefcase className="w-4 h-4 text-aurora-blue" /> {institution}
                  </div>
                  <div className="flex items-center gap-2 pt-1 pb-1 px-4 rounded-full bg-aurora-surface-1 border border-aurora-border text-aurora-text-mid text-sm font-semibold shadow-inner">
-                   <MapPin className="w-4 h-4 text-aurora-rose" /> California, USA
+                   <MapPin className="w-4 h-4 text-aurora-rose" /> {location}
                  </div>
                  <div className="flex items-center gap-2 pt-1 pb-1 px-4 rounded-full bg-aurora-surface-1 border border-aurora-border text-aurora-text-mid text-sm font-semibold shadow-inner">
                    <Mail className="w-4 h-4 text-aurora-cyan" /> {email}
@@ -82,7 +126,7 @@ export default function ProfilePage() {
                  <h3 className="text-xl font-bold font-heading text-aurora-text-high">About Me</h3>
                </div>
                <p className="text-aurora-text-mid text-base leading-relaxed font-medium mb-8">
-                 I study the intersection of large language models and cognitive architectures. My research focuses on making inferences more transparent and developing self-evaluating systems.
+                 {bio}
                </p>
                
                <div className="border-t border-aurora-border/50 pt-8">
@@ -111,12 +155,16 @@ export default function ProfilePage() {
                
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
                  <div className="bg-gradient-to-br from-aurora-surface-1 to-[#FbFcFF] p-8 rounded-[24px] border border-aurora-border/80 shadow-sm flex flex-col items-start hover:border-aurora-blue/40 hover:shadow-md transition-all duration-300">
-                   <span className="text-5xl font-extrabold text-aurora-blue font-heading mb-3 tracking-tight">124</span>
+                   <span className="text-5xl font-extrabold text-aurora-blue font-heading mb-3 tracking-tight">
+                     {papersLoading ? <Loader2 className="animate-spin h-8 w-8" /> : papersProcessed}
+                   </span>
                    <span className="text-[13px] font-bold uppercase tracking-widest text-aurora-text-low">Papers Processed</span>
                  </div>
                  
                  <div className="bg-gradient-to-br from-aurora-surface-1 to-[#FbFcFF] p-8 rounded-[24px] border border-aurora-border/80 shadow-sm flex flex-col items-start hover:border-aurora-violet/40 hover:shadow-md transition-all duration-300">
-                   <span className="text-5xl font-extrabold text-aurora-violet font-heading mb-3 tracking-tight">38</span>
+                   <span className="text-5xl font-extrabold text-aurora-violet font-heading mb-3 tracking-tight">
+                     {papersLoading ? <Loader2 className="animate-spin h-8 w-8" /> : kgCount}
+                   </span>
                    <span className="text-[13px] font-bold uppercase tracking-widest text-aurora-text-low">Knowledge Graphs</span>
                  </div>
                  

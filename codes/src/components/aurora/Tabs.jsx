@@ -53,7 +53,7 @@ export function TabsTrigger({ value, className = '', children, activeTab, setAct
   )
 }
 
-export function TabsContent({ value, className = '', children, activeTab, ...props }) {
+export function TabsContent({ value, className = '', children, activeTab, setActiveTab, ...props }) {
   if (activeTab !== value) return null;
   return (
     <div
