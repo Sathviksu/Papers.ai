@@ -149,7 +149,7 @@ const summarizePaperFlow = ai.defineFlow(
     outputSchema: SummarizePaperOutputSchema,
   },
   async (input) => {
-    const MAX_CHARS = 35_000;
+    const MAX_CHARS = 150_000;
     const truncatedInput = {
       ...input,
       paperText: input.paperText.length > MAX_CHARS
@@ -164,7 +164,12 @@ const summarizePaperFlow = ai.defineFlow(
       if (isValidationError(err)) {
         console.warn('⚠️ [SUMMARY REPAIR] Attempting to recover...');
         const rawText = extractRawText(err);
-        const rawOutput = rawText ? JSON.parse(rawText) : null;
+        let rawOutput = null;
+        try {
+          if (rawText) rawOutput = JSON.parse(rawText);
+        } catch (parseErr) {
+          console.error('[SUMMARY REPAIR] JSON Parse Failed:', parseErr.message);
+        }
         if (rawOutput && (rawOutput.expertText || rawOutput.practitionerText)) {
            output = rawOutput;
         } else {

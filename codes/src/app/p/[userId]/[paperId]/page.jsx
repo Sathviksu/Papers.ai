@@ -80,38 +80,42 @@ export default function PublicSharePage() {
         {/* Insights (if shared) */}
         {visibility.insights && sharedPaper.insights && (
           <div className="flex flex-col gap-8">
-            <div className="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-white animate-in slide-in-from-bottom-8 duration-500">
+             <div className="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-white animate-in slide-in-from-bottom-8 duration-500">
                <h2 className="text-2xl font-bold font-heading text-slate-800 mb-6">Key Insights & Methodology</h2>
                
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                    <h5 className="font-bold text-slate-400 uppercase tracking-widest text-[10px] mb-2">Research Problem</h5>
-                   <p className="text-slate-800 font-medium">{sharedPaper.insights.papers?.[0]?.coreQuestion || sharedPaper.insights.researchProblem || 'N/A'}</p>
+                   <p className="text-slate-800 font-medium">
+                     {sharedPaper.insights?.papers?.[0]?.coreQuestion || sharedPaper.insights?.researchProblem || sharedPaper.summary?.practitioner?.whatItsAbout || 'Not provided'}
+                   </p>
                  </div>
                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                    <h5 className="font-bold text-slate-400 uppercase tracking-widest text-[10px] mb-2">Methodology</h5>
-                   <p className="text-slate-800 font-medium">{sharedPaper.insights.papers?.[0]?.methodology || sharedPaper.insights.methodology || 'N/A'}</p>
+                   <p className="text-slate-800 font-medium">
+                     {sharedPaper.insights?.papers?.[0]?.methodology || sharedPaper.insights?.methodology || sharedPaper.summary?.expert?.breakdown?.methodology || 'Not detailed'}
+                   </p>
                  </div>
                </div>
 
                <h4 className="font-bold text-slate-800 mb-4">Core Claims</h4>
                <div className="space-y-4">
-                 {(sharedPaper.insights.papers?.[0]?.claims || sharedPaper.insights.evaluationMetrics || []).map((c, i) => {
-                   const text = typeof c === 'string' ? c : c.text;
-                   const conf = typeof c === 'string' ? null : c.confidence;
-                   return (
-                     <div key={i} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <Badge className="bg-white text-slate-400 text-[9px] border-slate-200">CLAIM {i+1}</Badge>
-                          {conf != null && (
-                            <Badge variant="outline" className={`${conf > 0.8 ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 'border-amber-200 text-amber-600 bg-amber-50'} font-bold`}>
-                              {Math.round(conf * 100)}% Confidence
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-slate-700 font-medium leading-relaxed">{text}</p>
-                     </div>
-                   );
+                 {(sharedPaper.insights?.papers?.[0]?.claims || sharedPaper.insights?.evaluationMetrics || sharedPaper.summary?.expert?.contributions?.map(text => ({ text, confidence: null })) || []).map((c, i) => {
+                    const text = typeof c === 'string' ? c : c.text;
+                    const conf = typeof c === 'string' ? null : c.confidence;
+                    return (
+                      <div key={i} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                         <div className="flex items-center justify-between">
+                           <Badge className="bg-white text-slate-400 text-[9px] border-slate-200">CLAIM {i+1}</Badge>
+                           {conf != null && (
+                             <Badge variant="outline" className={`${conf > 0.8 ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 'border-amber-200 text-amber-600 bg-amber-50'} font-bold`}>
+                               {Math.round(conf * 100)}% Confidence
+                             </Badge>
+                           )}
+                         </div>
+                         <p className="text-slate-700 font-medium leading-relaxed">{text}</p>
+                      </div>
+                    );
                  })}
                </div>
             </div>

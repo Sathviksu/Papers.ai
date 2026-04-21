@@ -231,6 +231,22 @@ function LibraryContent() {
     }
   };
 
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const confirmDeleteAll = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL your papers? This cannot be undone.')) return;
+    setIsDeletingAll(true);
+    try {
+      for (const p of papers || []) {
+        if (p.fullText) removeCachedPaper(p.fullText);
+        await deleteDoc(doc(firestore, `users/${user.uid}/papers/${p.id}`));
+      }
+    } catch (error) {
+      console.error("Error deleting all papers: ", error);
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-10 w-full max-w-7xl mx-auto pb-16">
       
@@ -270,6 +286,17 @@ function LibraryContent() {
             <p className="text-white/70 text-base max-w-md">
               Browse, search, and interact with all your uploaded research documents in one place.
             </p>
+            {(papers?.length > 0) && (
+              <Button 
+                onClick={confirmDeleteAll} 
+                disabled={isDeletingAll}
+                className="mt-4 bg-rose-500/20 text-rose-200 border border-rose-500/50 hover:bg-rose-500/40"
+                id="btn-delete-all-papers"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {isDeletingAll ? 'Deleting All...' : 'Delete All Papers'}
+              </Button>
+            )}
           </div>
 
           {/* Inline search in hero */}

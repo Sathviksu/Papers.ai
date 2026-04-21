@@ -1141,14 +1141,12 @@ export default function PaperDetailPage() {
             </div>
 
             {/* Citation Network Graph (Secondary Placement as per request) */}
-            {newRefSchema?.citations?.length > 0 && (
-              <div className="bg-white rounded-[24px] border border-aurora-border shadow-sm p-6 md:p-8 w-full">
-                <CitationNetworkGraph 
-                  paper={paper}
-                  citations={newRefSchema.citations}
-                />
-              </div>
-            )}
+            <div className="bg-white rounded-[24px] border border-aurora-border shadow-sm p-6 md:p-8 w-full">
+              <CitationNetworkGraph 
+                paper={paper}
+                citations={newRefSchema?.citations || []}
+              />
+            </div>
             
             {/* Knowledge Graph fallback/option */}
             {resolvedKnowledgeGraph && (

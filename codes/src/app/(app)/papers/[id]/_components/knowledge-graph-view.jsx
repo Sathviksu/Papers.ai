@@ -12,7 +12,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Lightbulb, Box, Database, Cog, Settings } from 'lucide-react';
+import { Lightbulb, Box, Database, Cog, Settings, Route } from 'lucide-react';
 
 // ── STYLE CONSTANTS ───────────────────────────────────────────────────────────
 const TYPE_COLORS = {
@@ -20,9 +20,10 @@ const TYPE_COLORS = {
   Model:   { bg: '#dbeafe', border: '#3b82f6', icon: '#2563eb', text: '#1e40af' },
   Dataset: { bg: '#dcfce7', border: '#22c55e', icon: '#16a34a', text: '#14532d' },
   Method:  { bg: '#f3e8ff', border: '#a855f7', icon: '#9333ea', text: '#581c87' },
+  Step:    { bg: '#e0f2fe', border: '#0ea5e9', icon: '#0284c7', text: '#075985' },
   default: { bg: '#f1f5f9', border: '#94a3b8', icon: '#64748b', text: '#334155' },
 };
-const TYPE_ICONS = { Concept: Lightbulb, Model: Box, Dataset: Database, Method: Cog, default: Settings };
+const TYPE_ICONS = { Concept: Lightbulb, Model: Box, Dataset: Database, Method: Cog, Step: Route, default: Settings };
 
 // ── CUSTOM NODE — MUST include <Handle> for edges to render ──────────────────
 const CustomNode = ({ data }) => {

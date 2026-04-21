@@ -104,7 +104,7 @@ BEGINNER:
 - complexityRating: 1-5 (1=simple, 5=complex)
 - verdict: overall assessment
 
-KNOWLEDGE GRAPH: Max 10 nodes, 12 edges. Focus on key concepts and relationships.
+KNOWLEDGE GRAPH: Max 15 nodes, 20 edges. Focus on key concepts and relationships. If any steps are there in the paper's methodology, it must be represented in the form of graph with node type "Step".
 
 Return ONLY valid JSON. No markdown or extra text.
 
@@ -121,10 +121,10 @@ const analyzePaperFastFlow = ai.defineFlow(
   async (input) => {
     // With time not being a constraint, use 25k chars for better quality summaries
     // This gives enough context for methodology + results + conclusions while staying under 6000 TPM
-    const MAX_CHARS = 25_000; 
+    const MAX_CHARS = 150_000; 
     const trimmed = {
       paperText: input.paperText.length > MAX_CHARS
-        ? input.paperText.slice(0, MAX_CHARS) + '\n[CONTENT TRUNCATED - processed first 25k characters]'
+        ? input.paperText.slice(0, MAX_CHARS) + '\n[CONTENT TRUNCATED - processed first 150k characters]'
         : input.paperText,
     };
     let output;

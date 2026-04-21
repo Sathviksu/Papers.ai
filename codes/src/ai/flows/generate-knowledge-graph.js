@@ -28,7 +28,7 @@ const GenerateKnowledgeGraphOutputSchema = z.object({
           ),
         type: z
           .string()
-          .describe('Concept | Model | Dataset | Method'),
+          .describe('Concept | Model | Dataset | Method | Step'),
         label: z.string().describe('The name or description of the entity.'),
       })
     )
@@ -114,8 +114,9 @@ CRITICAL RULES:
    - Model: algorithms, architectures, frameworks (e.g., "PBFT", "IBM Food Trust", "Smart Contract")
    - Dataset: data sources, benchmarks, experiments (e.g., "Walmart pilot data", "RFID logs")
    - Method: procedures, techniques (e.g., "Distributed Ledger", "Hash Function", "Merkle Tree")
-4. Every node MUST have exactly: id (string like "concept-1"), type (Concept|Model|Dataset|Method), label (concise name).
-5. Create MEANINGFUL edges between entities. Aim for at least as many edges as nodes.
+   - Step: sequential workflow or methodology steps (e.g., "Data Preprocessing", "Feature Extraction", "Model Training")
+4. Every node MUST have exactly: id (string like "concept-1"), type (Concept|Model|Dataset|Method|Step), label (concise name).
+5. Create MEANINGFUL edges between entities. Aim for at least as many edges as nodes. If extracting Steps, connect them sequentially with edges like "leads to" or "proceeds to" or "next step".
 6. Edge labels must be active verbs: "uses", "enables", "improves", "applies to", "proposes", "compares", "implements", "evaluates", "based on", "extends", "validates".
 7. Edge source/target MUST exactly match the node id strings you define above.
 
@@ -150,7 +151,12 @@ const generateKnowledgeGraphFlow = ai.defineFlow(
       if (isValidationError(err)) {
         console.warn('⚠️ [KG REPAIR] Schema validation failed. Attempting to recover...');
         const rawText = extractRawText(err);
-        const rawOutput = rawText ? JSON.parse(rawText) : null;
+        let rawOutput = null;
+        try {
+          if (rawText) rawOutput = JSON.parse(rawText);
+        } catch (parseErr) {
+          console.error('[KG REPAIR] JSON Parse Failed:', parseErr.message);
+        }
         if (rawOutput && (rawOutput.nodes || rawOutput.edges)) {
            console.log('✅ [KG REPAIR] Recovered partial graph from raw text.');
            output = rawOutput;

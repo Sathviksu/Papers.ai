@@ -41,6 +41,20 @@ const ExtractInsightsOutputSchema = z.object({
       })).optional(),
       unit: z.string().nullable().optional(),
     })).nullable().optional(),
+    citations: z.array(z.object({
+      ref: z.string().nullable().optional().describe('Title of the cited paper'),
+      authors: z.array(z.string()).nullable().optional(),
+      year: z.union([z.string(), z.number()]).nullable().optional(),
+      type: z.string().nullable().optional().describe('Type of citation, e.g., Paper, Proceeding, Book'),
+      conference: z.string().nullable().optional().describe('Venue or conference it was published in'),
+      context: z.string().nullable().optional().describe('Context in which it is cited'),
+      role: z.string().nullable().optional().describe('Role of the citation: Background, Methodology, Baseline, etc.')
+    })).nullable().optional(),
+    claims: z.array(z.object({
+      text: z.string().describe('The core claim or thesis made by the paper'),
+      confidence: z.number().describe('Confidence score between 0.0 and 1.0 based on evidence strength'),
+      evidence: z.string().nullable().optional().describe('Quote or specific finding supporting the claim'),
+    })).nullable().optional(),
     topics: z.array(z.string()).nullable().optional(),
   })),
 });
@@ -81,6 +95,24 @@ const extractInsightsPrompt = ai.definePrompt({
     "links": [
       {"from": "Machine Learning", "to": "Neural Networks", "relation": "uses"}
     ],
+    "citations": [
+      {
+        "ref": "Attention Is All You Need",
+        "authors": ["Vaswani et al."],
+        "year": 2017,
+        "type": "Paper",
+        "conference": "NIPS",
+        "context": "Used as the baseline transformer architecture.",
+        "role": "Baseline"
+      }
+    ],
+    "claims": [
+      {
+        "text": "Neural networks outperform traditional models on this dataset",
+        "confidence": 0.95,
+        "evidence": "Results show a 15% increase in accuracy as documented in Table 2."
+      }
+    ],
     "topics": ["Artificial Intelligence", "Computer Vision"]
   }]
 }
@@ -89,6 +121,7 @@ IMPORTANT:
 - Extract real content from the paper text below
 - concepts: Extract 5-10 key technical terms/methods with weights 0.1-1.0
 - visualizations: Extract actual quantitative results as chart data
+- citations: Extract references made by the paper, up to 15 key citations.
 - summaries: Write substantive summaries, not generic placeholders
 - Return ONLY valid JSON, no other text
 
@@ -107,7 +140,7 @@ const extractInsightsFlow = ai.defineFlow(
   },
   async (input) => {
     // Increased limit to handle more content - Groq can handle up to 128k tokens
-    const MAX_CHARS = 50_000;
+    const MAX_CHARS = 200_000;
     const truncatedInput = {
       ...input,
       paperText: input.paperText.length > MAX_CHARS
@@ -124,7 +157,12 @@ const extractInsightsFlow = ai.defineFlow(
         console.warn('⚠️ [EXTRACTION REPAIR] Schema validation failed. Attempting to recover partial data...');
         // We attempt to return the raw result if it exists, even if it failed the strict schema test
         const rawText = extractRawText(err);
-        const rawOutput = rawText ? JSON.parse(rawText) : null;
+        let rawOutput = null;
+        try {
+          if (rawText) rawOutput = JSON.parse(rawText);
+        } catch (parseErr) {
+          console.error('Failed to parse recovered JSON from Validation err:', parseErr.message);
+        }
         if (rawOutput && rawOutput.papers) {
            console.log('✅ [EXTRACTION REPAIR] Recovered partial JSON from raw text.');
            output = rawOutput;
