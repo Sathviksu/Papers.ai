@@ -23,7 +23,9 @@ const AskPaperQnAOutputSchema = z.object({
  * "JSON schema" instructions with the answer content.
  */
 async function callModel(modelName, question, context) {
-  const prompt = `You are a concise, expert research assistant. Answer the following question using ONLY the provided paper context. Write a clear, natural language answer — do not output JSON or code.
+  const prompt = `You are a concise, expert research assistant. Answer the following question using ONLY the provided paper context. 
+Write a clear, natural language answer — do not output JSON or code.
+Keep your response concise and limited to 4 to 5 lines maximum.
 
 If the answer cannot be found in the context, say: "I don't have enough information to answer that from this paper."
 

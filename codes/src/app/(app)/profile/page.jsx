@@ -1,13 +1,23 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { doc, collection, query } from 'firebase/firestore';
+import { doc, collection, query, updateDoc } from 'firebase/firestore';
 import { Card } from '@/components/aurora/Card';
 import { Button } from '@/components/aurora/Button';
 import { Badge } from '@/components/aurora/Badge';
-import { Mail, Briefcase, MapPin, Share2, Edit3, Award, FileText, Zap, User as UserIcon, Loader2 } from 'lucide-react';
+import { Mail, Briefcase, MapPin, Share2, Edit3, Award, FileText, Zap, User as UserIcon, Loader2, Check, X, Image as ImageIcon } from 'lucide-react';
+
+const CURATED_GRADIENTS = [
+  { name: 'Aurora', value: 'linear-gradient(to right, #4361ee, #7209b7, #f72585)' },
+  { name: 'Ocean', value: 'linear-gradient(to right, #0ea5e9, #2dd4bf)' },
+  { name: 'Sunset', value: 'linear-gradient(to right, #f43f5e, #fb923c)' },
+  { name: 'Forest', value: 'linear-gradient(to right, #059669, #10b981)' },
+  { name: 'Midnight', value: 'linear-gradient(to right, #0f172a, #334155)' },
+  { name: 'Royal', value: 'linear-gradient(to right, #6366f1, #a855f7)' },
+];
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -24,6 +34,27 @@ export default function ProfilePage() {
     return query(collection(firestore, `users/${user.uid}/papers`));
   }, [user, firestore]);
   const { data: papers, isLoading: papersLoading } = useCollection(papersQuery);
+
+  const [isEditingCover, setIsEditingCover] = useState(false);
+  const [isSavingCover, setIsSavingCover] = useState(false);
+  const [customImageUrl, setCustomImageUrl] = useState('');
+
+  const handleSaveCover = async (type, value) => {
+    if (!user || !firestore) return;
+    setIsSavingCover(true);
+    try {
+      await updateDoc(userDocRef, {
+        coverType: type,
+        coverValue: value,
+      });
+      setIsEditingCover(false);
+    } catch (err) {
+      console.error('Error saving cover:', err);
+      alert('Failed to save cover. Please try again.');
+    } finally {
+      setIsSavingCover(false);
+    }
+  };
 
   const displayName = profile?.name || user?.displayName || 'Research Enthusiast';
   const email = user?.email || profile?.email || '';
@@ -51,16 +82,92 @@ export default function ProfilePage() {
        
        {/* Banner & Avatar Header */}
        <div className="w-full bg-white rounded-[32px] border border-aurora-border shadow-sm overflow-hidden mb-8">
-          <div className="h-48 md:h-56 w-full bg-gradient-to-r from-aurora-blue via-aurora-violet to-aurora-rose relative overflow-hidden">
+          <div 
+            className="h-48 md:h-56 w-full relative overflow-hidden transition-all duration-500"
+            style={{ 
+              background: profile?.coverType === 'image' 
+                ? `url(${profile.coverValue}) center/cover no-repeat` 
+                : (profile?.coverValue || 'linear-gradient(to right, #4361ee, #7209b7, #f72585)') 
+            }}
+          >
              {/* Diagonal glass overlay for texture */}
-             <div className="absolute inset-0 bg-white/10 backdrop-blur-md transform -skew-y-12 scale-150 origin-top-left shadow-[inset_0_0_50px_rgba(255,255,255,0.2)]" />
-             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-             <Button variant="outline" size="sm" className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white border-white/30 backdrop-blur-md font-bold rounded-[12px]">
-               <Edit3 className="w-4 h-4 mr-2" /> Edit Cover
+             <div className="absolute inset-0 bg-white/10 backdrop-blur-md transform -skew-y-12 scale-150 origin-top-left shadow-[inset_0_0_50px_rgba(255,255,255,0.2)] pointer-events-none" />
+             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+             
+             {isEditingCover && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300 p-4">
+                   <div className="bg-white rounded-[32px] p-8 shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-300 border border-aurora-border">
+                      <div className="flex justify-between items-center mb-8">
+                         <div className="flex flex-col">
+                            <h3 className="text-2xl font-black font-heading text-aurora-text-high leading-tight">Customize Cover</h3>
+                            <p className="text-sm text-aurora-text-low font-medium">Select a vibe or use a custom image.</p>
+                         </div>
+                         <button onClick={() => setIsEditingCover(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                            <X className="w-6 h-6 text-aurora-text-low" />
+                         </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-10">
+                         {CURATED_GRADIENTS.map((g) => (
+                           <button
+                             key={g.name}
+                             onClick={() => handleSaveCover('gradient', g.value)}
+                             disabled={isSavingCover}
+                             className={`group relative h-24 rounded-2xl overflow-hidden border-4 transition-all ${
+                               profile?.coverValue === g.value ? 'border-aurora-blue scale-[1.02] shadow-lg' : 'border-transparent hover:border-aurora-blue/40'
+                             }`}
+                             style={{ background: g.value }}
+                           >
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-all">
+                                 {profile?.coverValue === g.value && (
+                                   <div className="bg-white rounded-full p-1.5 shadow-xl animate-in zoom-in">
+                                      <Check className="w-5 h-5 text-aurora-blue" />
+                                   </div>
+                                 )}
+                                 <span className="absolute bottom-2 left-3 text-[10px] font-black uppercase tracking-widest text-white drop-shadow-md">{g.name}</span>
+                              </div>
+                           </button>
+                         ))}
+                      </div>
+
+                      <div className="space-y-4">
+                         <div className="flex items-center gap-2 mb-1">
+                            <ImageIcon className="w-4 h-4 text-aurora-blue" />
+                            <label className="text-[11px] font-black uppercase tracking-widest text-aurora-text-low">External Image Link</label>
+                         </div>
+                         <div className="flex gap-3">
+                            <div className="relative flex-1">
+                               <input 
+                                 type="text" 
+                                 placeholder="Paste direct image URL..."
+                                 value={customImageUrl}
+                                 onChange={(e) => setCustomImageUrl(e.target.value)}
+                                 className="w-full h-14 px-5 rounded-2xl bg-aurora-surface-1 border-2 border-aurora-border focus:border-aurora-blue outline-none text-sm font-bold transition-all placeholder:text-aurora-text-low shadow-inner"
+                                 onKeyDown={(e) => {
+                                   if (e.key === 'Enter') handleSaveCover('image', customImageUrl);
+                                 }}
+                               />
+                            </div>
+                            <Button variant="gradient" className="h-14 px-8 rounded-2xl font-bold shadow-md" onClick={() => handleSaveCover('image', customImageUrl)}>
+                               {isSavingCover ? <Loader2 className="animate-spin" /> : 'Apply'}
+                            </Button>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             )}
+
+             <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsEditingCover(true)}
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white border-white/30 backdrop-blur-md font-bold rounded-[12px] z-10"
+             >
+                <Edit3 className="w-4 h-4 mr-2" /> Edit Cover
              </Button>
           </div>
           
-          <div className="px-6 md:px-10 pb-8 relative pt-20">
+          <div className="px-6 md:px-10 pb-8 relative pt-20 z-10">
              {/* Avatar */}
              <div className="absolute -top-16 md:-top-20 left-6 md:left-10 p-2 bg-white rounded-full">
                <div className="w-28 h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-aurora-blue to-aurora-cyan border-[6px] border-white shadow-xl overflow-hidden flex items-center justify-center relative">

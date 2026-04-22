@@ -16,6 +16,12 @@ const CheckboxTile = ({ checked, onChange, label, sublabel }) => (
   <label className={`flex flex-col gap-2 p-5 rounded-[20px] border-[2px] cursor-pointer transition-all duration-200 shadow-sm ${
     checked ? 'bg-aurora-blue/5 border-aurora-blue shadow-[0_0_15px_rgba(67,97,238,0.1)]' : 'bg-white border-aurora-border hover:border-aurora-blue/40 hover:bg-aurora-surface-1'
   }`}>
+    <input
+      type="checkbox"
+      className="sr-only"
+      checked={checked}
+      onChange={onChange}
+    />
     <div className="flex items-center justify-between w-full">
       <span className={`font-bold font-heading text-lg ${checked ? 'text-aurora-blue' : 'text-aurora-text-high'}`}>{label}</span>
       <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${checked ? 'bg-aurora-blue text-white' : 'border-2 border-aurora-border'}`}>
@@ -118,8 +124,38 @@ export default function ExportPage() {
       }
 
       const chatRef = collection(firestore, `users/${user.uid}/papers/${paperId}/chat`);
-      const chatSnap = await getDocs(query(chatRef, orderBy('timestamp', 'asc')));
-      return { paperData, summaryDoc, insights, knowledgeGraph, chat: chatSnap.docs.map(d => d.data()) };
+      const chatSnap = await getDocs(chatRef); // Removed orderBy to be safer
+      
+      const subcollectionChat = chatSnap.docs.map(d => d.data());
+      const inlineChat = paperData?.chatHistory || [];
+      
+      // Combine and normalize message structure
+      const combinedChat = [...inlineChat, ...subcollectionChat].map(m => {
+        // Handle both new 'content' field and legacy 'question/answer' fields
+        const content = m.content || m.question || m.answer || '';
+        const role = m.role || (m.question ? 'user' : 'assistant');
+        return {
+          ...m,
+          role,
+          content,
+          timestamp: m.timestamp || 0
+        };
+      });
+
+      // Sort by timestamp safely
+      combinedChat.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime() || 0;
+        const timeB = new Date(b.timestamp).getTime() || 0;
+        return timeA - timeB;
+      });
+
+      return { 
+        paperData, 
+        summaryDoc, 
+        insights, 
+        knowledgeGraph, 
+        chat: combinedChat 
+      };
     } catch (e) {
       console.error('Error fetching paper details:', e);
       return { paperData: null, summaryDoc: null, insights: null, knowledgeGraph: null, chat: [] };
@@ -442,10 +478,14 @@ export default function ExportPage() {
           if (m.role === 'user') {
             doc.setFont(undefined, 'bold');
             const ql = doc.splitTextToSize(`Q: ${m.content || ''}`, 170);
+            // Check for page break
+            if (y + ql.length * 5 + 10 > 280) { doc.addPage(); y = 20; }
             doc.text(ql, 20, y); y += ql.length * 5 + 4;
           } else {
             doc.setFont(undefined, 'normal');
             const al = doc.splitTextToSize(`A: ${m.content || ''}`, 170);
+            // Check for page break
+            if (y + al.length * 5 + 10 > 280) { doc.addPage(); y = 20; }
             doc.text(al, 20, y); y += al.length * 5 + 6;
           }
         });
