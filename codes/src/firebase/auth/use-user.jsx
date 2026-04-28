@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useAuth } from '../provider';
 
 export function useUser() {
@@ -10,23 +10,12 @@ export function useUser() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle redirect result for signInWithRedirect
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          // User signed in via redirect
-          console.log('Redirect login successful:', result.user);
-        }
-      } catch (error) {
-        // Silent fail - user may not be returning from redirect
-        console.debug('No redirect result:', error.code);
-      }
-    };
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
 
-    handleRedirectResult();
-
-    // onAuthStateChanged is asynchronous, so we need to handle the initial state
+    // onAuthStateChanged handles both regular sessions and redirect results
     setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
