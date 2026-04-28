@@ -1,7 +1,7 @@
 // login page
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -67,9 +67,17 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
+  const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [formType, setFormType] = useState('signin');
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, authLoading, router]);
 
   const signUpForm = useForm({
     resolver: zodResolver(signUpSchema),
@@ -90,16 +98,10 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     startTransition(async () => {
       try {
-        const userCredential = await signInWithGoogle(auth);
-        const additionalInfo = getAdditionalUserInfo(userCredential);
-        if (additionalInfo?.isNewUser) {
-          await createUserProfile(userCredential.user, firestore);
-        }
-        toast({
-          title: 'Login Successful',
-          description: "You're now logged in.",
-        });
-        router.push('/dashboard');
+        // signInWithRedirect will redirect the page, so we don't get a result here
+        // After redirect, the user will be set in FirebaseProvider and useUser() will update
+        await signInWithGoogle(auth);
+        // Note: The actual navigation happens in the (app) layout after auth state changes
       } catch (error) {
         console.error('Google login failed:', error);
         toast({

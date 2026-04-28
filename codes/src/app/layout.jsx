@@ -1,6 +1,26 @@
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useUser } from '@/firebase';
+
+function AuthHandler({ children }) {
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    // After auth loading completes and user exists, redirect to dashboard
+    if (!loading && user) {
+      const currentPath = window.location.pathname;
+      if (currentPath === '/login') {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, loading, router]);
+
+  return children;
+}
 
 export const metadata = {
   title: 'Papers.ai',
@@ -34,7 +54,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
-          {children}
+          <AuthHandler>
+            {children}
+          </AuthHandler>
           <Toaster />
         </FirebaseClientProvider>
       </body>
