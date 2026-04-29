@@ -68,7 +68,7 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, loading: authLoading } = useUser();
+  const { user, loading: authLoading, setUser } = useFirebase();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [formType, setFormType] = useState('signin');
@@ -126,6 +126,7 @@ export default function LoginPage() {
         await createUserProfile(userCredential.user, firestore, {
           name: `${values.firstName} ${values.lastName}`,
         });
+        setUser(userCredential.user);
         toast({
           title: 'Sign Up Successful',
           description: 'Your account has been created.',
@@ -146,7 +147,8 @@ export default function LoginPage() {
   const onSignInSubmit = (values) => {
     startTransition(async () => {
       try {
-        await signInWithEmailAndPassword(auth, values.email, values.password);
+        const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+        setUser(userCredential.user);
         toast({
           title: 'Login Successful',
           description: "You're now logged in.",

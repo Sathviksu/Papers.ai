@@ -79,6 +79,24 @@ export const FirebaseProvider = ({
   // Memoize the context value
   const contextValue = useMemo(() => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
+    
+    // Allow manual user state updates for synchronous transitions
+    const setUser = (user) => {
+      setUserAuthState(prev => ({
+        ...prev,
+        user,
+        isUserLoading: false,
+        userError: null,
+      }));
+    };
+
+    const setLocalLoading = (isLoading) => {
+      setUserAuthState(prev => ({
+        ...prev,
+        isUserLoading: isLoading,
+      }));
+    };
+
     return {
       areServicesAvailable: servicesAvailable,
       firebaseApp: servicesAvailable ? firebaseApp : null,
@@ -87,6 +105,8 @@ export const FirebaseProvider = ({
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
+      setUser,
+      setLocalLoading,
     };
   }, [firebaseApp, firestore, auth, userAuthState]);
 
