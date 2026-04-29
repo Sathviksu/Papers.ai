@@ -11,7 +11,7 @@ import { z } from 'zod';
 import {
   signInWithGoogle,
   useAuth,
-  useUser,
+  useFirebase,
   createUserProfile,
   getAdditionalUserInfo,
   signInWithEmailAndPassword,
