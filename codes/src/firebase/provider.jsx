@@ -8,7 +8,7 @@ import React, {
   useEffect,
 } from 'react';
 
-import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 // Internal state for user authentication
@@ -51,52 +51,29 @@ export const FirebaseProvider = ({
 
     setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
 
-    // Handle redirect result first (for signInWithRedirect)
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          // User signed in via redirect
-          setUserAuthState({
-            user: result.user,
-            isUserLoading: false,
-            userError: null,
-          });
-          return true;
-        }
-      } catch (error) {
-        // Silent fail - user may not be returning from redirect
-        console.debug('No redirect result:', error.code);
+    // Simply use onAuthStateChanged - it handles both regular sessions and redirect results
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (firebaseUser) => {
+        // Auth state determined - user may be null (not logged in) or a user object
+        setUserAuthState({
+          user: firebaseUser,
+          isUserLoading: false,
+          userError: null,
+        });
+      },
+      (error) => {
+        // Auth listener error
+        console.error('FirebaseProvider: onAuthStateChanged error:', error);
+        setUserAuthState({
+          user: null,
+          isUserLoading: false,
+          userError: error,
+        });
       }
-      return false;
-    };
+    );
 
-    // Check redirect result, then listen for auth state changes
-    handleRedirectResult().then((hadRedirectUser) => {
-      if (hadRedirectUser) return; // Already set user from redirect
-
-      const unsubscribe = onAuthStateChanged(
-        auth,
-        (firebaseUser) => {
-          // Auth state determined
-          setUserAuthState({
-            user: firebaseUser,
-            isUserLoading: false,
-            userError: null,
-          });
-        },
-        (error) => {
-          // Auth listener error
-          console.error('FirebaseProvider: onAuthStateChanged error:', error);
-          setUserAuthState({
-            user: null,
-            isUserLoading: false,
-            userError: error,
-          });
-        }
-      );
-      return () => unsubscribe(); // Cleanup
-    });
+    return () => unsubscribe(); // Cleanup
   }, [auth]); // Depends on the auth instance
 
   // Memoize the context value

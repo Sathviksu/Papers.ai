@@ -7,7 +7,6 @@ import {
   getAdditionalUserInfo,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  getRedirectResult,
 } from 'firebase/auth';
 
 function signInWithGoogle(auth) {
@@ -25,7 +24,6 @@ export {
   getAdditionalUserInfo,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  getRedirectResult,
 };
 
 export * from './use-user';
