@@ -408,7 +408,6 @@ function ComparisonReport({ papers }) {
             </div>
           ))}
         </div>
-          </div>
         </div>
       </Card>
 
