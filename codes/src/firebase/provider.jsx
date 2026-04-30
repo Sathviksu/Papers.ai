@@ -37,21 +37,16 @@ export const FirebaseProvider = ({
 
     setUserAuthState({ user: null, isUserLoading: true, userError: null });
 
-    // Handle post-redirect session restore (for all browsers)
+    // Handle redirect fallback (Safari)
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
-          setUserAuthState({
-            user: result.user,
-            isUserLoading: false,
-            userError: null,
-          });
+          setUserAuthState({ user: result.user, isUserLoading: false, userError: null });
         }
       })
-      .catch((err) => {
-        console.error('FirebaseProvider: getRedirectResult error:', err);
-      });
+      .catch(console.error);
 
+    // Primary auth state listener
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => {
@@ -100,6 +95,7 @@ export const FirebaseProvider = ({
       auth: servicesAvailable ? auth : null,
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
+      loading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
       setUser,
       setLocalLoading,
@@ -138,7 +134,10 @@ export const useFirebase = () => {
     auth: context.auth,
     user: context.user,
     isUserLoading: context.isUserLoading,
+    loading: context.isUserLoading,
     userError: context.userError,
+    setUser: context.setUser,
+    setLocalLoading: context.setLocalLoading,
   };
 };
 
