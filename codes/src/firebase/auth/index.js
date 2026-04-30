@@ -2,7 +2,7 @@
 
 import {
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,          // ✅ change this
   signOut as firebaseSignOut,
   getAdditionalUserInfo,
   createUserWithEmailAndPassword,
@@ -11,7 +11,7 @@ import {
 
 function signInWithGoogle(auth) {
   const provider = new GoogleAuthProvider();
-  return signInWithRedirect(auth, provider);
+  return signInWithPopup(auth, provider); // ✅ change this
 }
 
 function signOut(auth) {

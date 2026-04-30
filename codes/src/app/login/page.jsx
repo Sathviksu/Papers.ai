@@ -75,10 +75,10 @@ export default function LoginPage() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && (user || auth?.currentUser)) {
       router.push('/dashboard');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, auth]);
 
   const signUpForm = useForm({
     resolver: zodResolver(signUpSchema),

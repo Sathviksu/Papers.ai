@@ -8,23 +8,11 @@ import React, {
   useEffect,
 } from 'react';
 
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
-// Internal state for user authentication
-
-// Combined state for the Firebase context
-
-// Return type for useFirebase()
-
-// Return type for useUser() - specific to user auth state
-
-// React Context
 export const FirebaseContext = createContext(undefined);
 
-/**
- * FirebaseProvider manages and provides Firebase services and user authentication state.
- */
 export const FirebaseProvider = ({
   children,
   firebaseApp,
@@ -33,14 +21,12 @@ export const FirebaseProvider = ({
 }) => {
   const [userAuthState, setUserAuthState] = useState({
     user: null,
-    isUserLoading: true, // Start loading until first auth event
+    isUserLoading: true,
     userError: null,
   });
 
-  // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
     if (!auth) {
-      // If no Auth service instance, cannot determine user state
       setUserAuthState({
         user: null,
         isUserLoading: false,
@@ -49,38 +35,45 @@ export const FirebaseProvider = ({
       return;
     }
 
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
+    setUserAuthState({ user: null, isUserLoading: true, userError: null });
 
-    // Simply use onAuthStateChanged - it handles both regular sessions and redirect results
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (firebaseUser) => {
-        // Auth state determined - user may be null (not logged in) or a user object
-        setUserAuthState({
-          user: firebaseUser,
-          isUserLoading: false,
-          userError: null,
-        });
-      },
-      (error) => {
-        // Auth listener error
-        console.error('FirebaseProvider: onAuthStateChanged error:', error);
-        setUserAuthState({
-          user: null,
-          isUserLoading: false,
-          userError: error,
-        });
-      }
-    );
+    let redirectChecked = false;
 
-    return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+    // Check redirect result first
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          setUserAuthState({
+            user: result.user,
+            isUserLoading: false,
+            userError: null,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error('getRedirectResult error:', error);
+      })
+      .finally(() => {
+        redirectChecked = true;
+      });
 
-  // Memoize the context value
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // Wait until redirect check is done before trusting null user
+      if (!redirectChecked && !firebaseUser) return;
+
+      setUserAuthState({
+        user: firebaseUser,
+        isUserLoading: false,
+        userError: null,
+      });
+    });
+
+    return () => unsubscribe();
+  }, [auth]);
+
   const contextValue = useMemo(() => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
-    
-    // Allow manual user state updates for synchronous transitions
+
     const setUser = (user) => {
       setUserAuthState(prev => ({
         ...prev,
@@ -118,10 +111,6 @@ export const FirebaseProvider = ({
   );
 };
 
-/**
- * Hook to access core Firebase services and user authentication state.
- * Throws error if core services are not available or used outside provider.
- */
 export const useFirebase = () => {
   const context = useContext(FirebaseContext);
 
@@ -145,24 +134,26 @@ export const useFirebase = () => {
     firestore: context.firestore,
     auth: context.auth,
     user: context.user,
+    // Expose both names so callers can use either
+    loading: context.isUserLoading,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
+    // Expose setUser for synchronous auth state updates
+    setUser: context.setUser,
+    setLocalLoading: context.setLocalLoading,
   };
 };
 
-/** Hook to access Firebase Auth instance. */
 export const useAuth = () => {
   const { auth } = useFirebase();
   return auth;
 };
 
-/** Hook to access Firestore instance. */
 export const useFirestore = () => {
   const { firestore } = useFirebase();
   return firestore;
 };
 
-/** Hook to access Firebase App instance. */
 export const useFirebaseApp = () => {
   const { firebaseApp } = useFirebase();
   return firebaseApp;
@@ -170,11 +161,7 @@ export const useFirebaseApp = () => {
 
 export function useMemoFirebase(factory, deps) {
   const memoized = useMemo(factory, deps);
-
   if (typeof memoized !== 'object' || memoized === null) return memoized;
   memoized.__memo = true;
-
   return memoized;
 }
-
-

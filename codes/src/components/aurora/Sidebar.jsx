@@ -1,9 +1,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, UploadCloud, Library, GitCompare, Download, Settings, User } from 'lucide-react';
+import { LayoutDashboard, UploadCloud, Library, GitCompare, Download, Settings, User, LogOut } from 'lucide-react';
+import { useAuth, signOut } from '@/firebase';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const auth = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Let the (app)/layout handle the redirect to login
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
   
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -45,6 +56,13 @@ export function Sidebar() {
       
       <div className="p-4 space-y-1 mt-auto border-t border-[#D5D8F2]/50">
         {bottomItems.map((item) => <NavLink key={item.name} item={item} />)}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-[12px] font-medium transition-all duration-200 group text-aurora-text-mid hover:bg-red-50 hover:text-red-600 border border-transparent"
+        >
+          <LogOut className="h-5 w-5 text-aurora-text-low group-hover:text-red-500 transition-colors" />
+          <span>Log out</span>
+        </button>
       </div>
     </aside>
   );
