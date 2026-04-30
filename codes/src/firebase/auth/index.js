@@ -1,17 +1,29 @@
-'use client';
+"use client";
 
 import {
   GoogleAuthProvider,
-  signInWithPopup,          // ✅ change this
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   getAdditionalUserInfo,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-} from 'firebase/auth';
+} from "firebase/auth";
 
-function signInWithGoogle(auth) {
+async function signInWithGoogle(auth) {
   const provider = new GoogleAuthProvider();
-  return signInWithPopup(auth, provider); // ✅ change this
+  try {
+    return await signInWithPopup(auth, provider); // try popup first
+  } catch (err) {
+    if (
+      err.code === "auth/popup-blocked" ||
+      err.code === "auth/popup-closed-by-user"
+    ) {
+      return signInWithRedirect(auth, provider); // fallback to redirect
+    }
+    throw err;
+  }
 }
 
 function signOut(auth) {
@@ -26,4 +38,4 @@ export {
   signInWithEmailAndPassword,
 };
 
-export * from './use-user';
+export * from "./use-user";

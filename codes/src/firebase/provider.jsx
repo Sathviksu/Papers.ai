@@ -37,9 +37,7 @@ export const FirebaseProvider = ({
 
     setUserAuthState({ user: null, isUserLoading: true, userError: null });
 
-    let redirectChecked = false;
-
-    // Check redirect result first
+    // Handle post-redirect session restore (for all browsers)
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -50,23 +48,28 @@ export const FirebaseProvider = ({
           });
         }
       })
-      .catch((error) => {
-        console.error('getRedirectResult error:', error);
-      })
-      .finally(() => {
-        redirectChecked = true;
+      .catch((err) => {
+        console.error('FirebaseProvider: getRedirectResult error:', err);
       });
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      // Wait until redirect check is done before trusting null user
-      if (!redirectChecked && !firebaseUser) return;
-
-      setUserAuthState({
-        user: firebaseUser,
-        isUserLoading: false,
-        userError: null,
-      });
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (firebaseUser) => {
+        setUserAuthState({
+          user: firebaseUser,
+          isUserLoading: false,
+          userError: null,
+        });
+      },
+      (error) => {
+        console.error('FirebaseProvider: onAuthStateChanged error:', error);
+        setUserAuthState({
+          user: null,
+          isUserLoading: false,
+          userError: error,
+        });
+      }
+    );
 
     return () => unsubscribe();
   }, [auth]);
@@ -134,13 +137,8 @@ export const useFirebase = () => {
     firestore: context.firestore,
     auth: context.auth,
     user: context.user,
-    // Expose both names so callers can use either
-    loading: context.isUserLoading,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
-    // Expose setUser for synchronous auth state updates
-    setUser: context.setUser,
-    setLocalLoading: context.setLocalLoading,
   };
 };
 
@@ -161,7 +159,9 @@ export const useFirebaseApp = () => {
 
 export function useMemoFirebase(factory, deps) {
   const memoized = useMemo(factory, deps);
+
   if (typeof memoized !== 'object' || memoized === null) return memoized;
   memoized.__memo = true;
+
   return memoized;
 }
