@@ -300,7 +300,7 @@ function LibraryContent() {
           </div>
 
           {/* Inline search in hero */}
-          <div className="relative w-full md:w-96 flex-shrink-0">
+          <div className="relative w-full md:w-80 lg:w-96 flex-shrink-0 mt-4 md:mt-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
             <input
               value={search}
@@ -359,7 +359,7 @@ function LibraryContent() {
             {f.label}
           </button>
         ))}
-        <div className="ml-auto text-sm font-medium text-aurora-text-low whitespace-nowrap hidden md:block">
+        <div className="ml-auto text-xs sm:text-sm font-medium text-aurora-text-low whitespace-nowrap pl-4">
           {filteredPapers.length} result{filteredPapers.length !== 1 ? 's' : ''}
         </div>
       </div>

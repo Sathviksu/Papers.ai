@@ -1042,39 +1042,43 @@ export default function PaperDetailPage() {
         {activeTab === 'extraction' && (
           <div className="flex flex-col gap-6">
              <Tabs defaultValue="entities" activeTab={extractionTab} setActiveTab={setExtractionTab}>
-                <TabsList className="bg-transparent mb-2">
-                  <TabsTrigger value="entities" className="text-base h-10 px-4">Entities</TabsTrigger>
-                  <TabsTrigger value="claims" className="text-base h-10 px-4">Claims</TabsTrigger>
-                  <TabsTrigger value="methodology" className="text-base h-10 px-4">Methodology</TabsTrigger>
+                <TabsList className="bg-transparent mb-2 overflow-x-auto whitespace-nowrap flex w-full scrollbar-hide pb-2">
+                  <TabsTrigger value="entities" className="text-sm md:text-base h-10 px-4 shrink-0">Entities</TabsTrigger>
+                  <TabsTrigger value="claims" className="text-sm md:text-base h-10 px-4 shrink-0">Claims</TabsTrigger>
+                  <TabsTrigger value="methodology" className="text-sm md:text-base h-10 px-4 shrink-0">Methodology</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="entities">
-                  <div className="relative">
-                    <Button variant="outline" size="sm" className="absolute -top-12 right-0 bg-white shadow-sm font-semibold text-aurora-blue border-[#D5D8F2]">
-                       <Download className="w-4 h-4 mr-2" /> Export CSV
-                    </Button>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent hover:border-l-0">
-                          <TableHead className="w-[300px]">Entity Name</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Context / Description</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {extractedEntities.length > 0 ? extractedEntities.map((entity, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-semibold text-aurora-blue">{entity.name}</TableCell>
-                            <TableCell><Badge>{entity.type}</Badge></TableCell>
-                            <TableCell>{entity.context}</TableCell>
+                  <div className="relative overflow-x-auto w-full border border-[#D5D8F2] rounded-[24px] bg-white">
+                    <div className="min-w-[600px] p-1">
+                      <div className="flex justify-end p-4 border-b border-[#D5D8F2]">
+                        <Button variant="outline" size="sm" className="bg-white shadow-sm font-semibold text-aurora-blue border-[#D5D8F2]">
+                           <Download className="w-4 h-4 mr-2" /> Export CSV
+                        </Button>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent hover:border-l-0">
+                            <TableHead className="w-[200px] md:w-[300px]">Entity Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Context / Description</TableHead>
                           </TableRow>
-                        )) : (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center py-4">Data not ready</TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {extractedEntities.length > 0 ? extractedEntities.map((entity, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-semibold text-aurora-blue">{entity.name}</TableCell>
+                              <TableCell><Badge className="whitespace-nowrap">{entity.type}</Badge></TableCell>
+                              <TableCell>{entity.context}</TableCell>
+                            </TableRow>
+                          )) : (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center py-4">Data not ready</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </TabsContent>
                 <TabsContent value="claims">

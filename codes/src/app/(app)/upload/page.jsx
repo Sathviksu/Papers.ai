@@ -459,7 +459,7 @@ export default function UploadPage() {
 
   // ── Upload form ───────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto items-center justify-center min-h-[calc(100vh-140px)]">
+    <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto items-center justify-center min-h-[calc(100vh-140px)] px-2 sm:px-0">
       <div className="w-full mb-2">
         <Button variant="ghost" onClick={() => router.back()} className="mb-6 -ml-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -501,7 +501,7 @@ export default function UploadPage() {
                 <div className="absolute inset-[-10px] rounded-full bg-aurora-blue/20 blur-md animate-pulse" />
                 <UploadCloud className="h-10 w-10 text-aurora-blue relative z-10" />
               </div>
-              <h3 className="text-2xl font-bold text-aurora-text-high mb-1">Drop your paper here</h3>
+              <h3 className="text-xl sm:text-2xl font-bold text-aurora-text-high mb-1">Drop your paper here</h3>
               <p className="text-aurora-text-low font-medium">
                 or{' '}
                 <span
@@ -556,7 +556,7 @@ export default function UploadPage() {
           <p className="text-sm font-semibold text-aurora-text-low mb-4 uppercase tracking-wider">
             Or paste a link instead
           </p>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1 group">
               <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-aurora-text-low group-focus-within:text-aurora-blue transition-colors" />
               <Input
@@ -566,7 +566,7 @@ export default function UploadPage() {
                 onChange={(e) => setLinkInput(e.target.value)}
               />
             </div>
-            <Button className="h-14 px-8 rounded-[16px] font-bold shadow-md bg-white border border-aurora-border text-aurora-text-high hover:bg-aurora-surface-1">
+            <Button className="h-14 px-8 rounded-[16px] font-bold shadow-md bg-white border border-aurora-border text-aurora-text-high hover:bg-aurora-surface-1 w-full sm:w-auto">
               Fetch
             </Button>
           </div>

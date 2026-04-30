@@ -1,7 +1,7 @@
 // login page
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -70,7 +70,7 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { user, loading: authLoading, setUser } = useFirebase();
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
   const [formType, setFormType] = useState('signin');
 
   // Redirect if already logged in
@@ -97,87 +97,88 @@ export default function LoginPage() {
   });
 
   const handleGoogleLogin = async () => {
-    startTransition(async () => {
-      try {
-        // signInWithRedirect will redirect the page, so we don't get a result here
-        // After redirect, the user will be set in FirebaseProvider and useUser() will update
-        await signInWithGoogle(auth);
-        // Note: The actual navigation happens in the (app) layout after auth state changes
-      } catch (error) {
-        console.error('Google login failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Login Failed',
-          description:
-            error.message || 'Could not log in with Google. Please try again.',
-        });
-      }
-    });
+    setIsLoading(true);
+    try {
+      // signInWithRedirect will redirect the page, so we don't get a result here
+      // After redirect, the user will be set in FirebaseProvider and useUser() will update
+      await signInWithGoogle(auth);
+      // Note: The actual navigation happens in the (app) layout after auth state changes
+    } catch (error) {
+      console.error('Google login failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description:
+          error.message || 'Could not log in with Google. Please try again.',
+      });
+      setIsLoading(false);
+    }
   };
 
-  const onSignUpSubmit = (values) => {
-    startTransition(async () => {
-      try {
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          values.email,
-          values.password
-        );
-        await createUserProfile(userCredential.user, firestore, {
-          name: `${values.firstName} ${values.lastName}`,
-        });
-        setUser(userCredential.user);
-        toast({
-          title: 'Sign Up Successful',
-          description: 'Your account has been created.',
-        });
-        router.push('/dashboard');
-      } catch (error) {
-        console.error('Sign up failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Sign Up Failed',
-          description:
-            error.message || 'Could not create an account. Please try again.',
-        });
-      }
-    });
+  const onSignUpSubmit = async (values) => {
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
+      await createUserProfile(userCredential.user, firestore, {
+        name: `${values.firstName} ${values.lastName}`,
+      });
+      setUser(userCredential.user);
+      toast({
+        title: 'Sign Up Successful',
+        description: 'Your account has been created.',
+      });
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Sign up failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Sign Up Failed',
+        description:
+          error.message || 'Could not create an account. Please try again.',
+      });
+      setIsLoading(false);
+    }
   };
 
-  const onSignInSubmit = (values) => {
-    startTransition(async () => {
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-        setUser(userCredential.user);
-        toast({
-          title: 'Login Successful',
-          description: "You're now logged in.",
-        });
-        router.push('/dashboard');
-      } catch (error) {
-        console.error('Sign in failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Login Failed',
-          description: 'Invalid email or password. Please try again.',
-        });
-      }
-    });
+  const onSignInSubmit = async (values) => {
+    setIsLoading(true);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      setUser(userCredential.user);
+      toast({
+        title: 'Login Successful',
+        description: "You're now logged in.",
+      });
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: 'Invalid email or password. Please try again.',
+      });
+      setIsLoading(false);
+    }
   };
 
   const SignInForm = (
-    <div className="w-full max-w-sm">
+    <div key="signin-form" className="w-full max-w-sm">
       <div className="grid gap-2 mb-6">
         <h1 className="text-3xl font-bold">Log in</h1>
         <p className="text-balance text-muted-foreground">
           Don't have an account?{' '}
           <button
+            type="button"
             onClick={() => {
               setFormType('signup');
               signInForm.reset();
             }}
             className="font-semibold text-primary hover:underline"
-            disabled={isPending}
+            disabled={isLoading}
           >
             Create an account
           </button>
@@ -194,7 +195,7 @@ export default function LoginPage() {
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input placeholder="Email" autoComplete="off" className="border-slate-400 focus-visible:ring-slate-500" {...field} />
+                  <Input type="email" placeholder="Email" autoComplete="email" className="border-slate-400 focus-visible:ring-slate-500" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -223,9 +224,9 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="w-full font-semibold"
-            disabled={isPending}
+            disabled={isLoading}
           >
-            {isPending ? 'Logging In...' : 'Log in'}
+            {isLoading ? 'Logging In...' : 'Log in'}
           </Button>
         </form>
       </Form>
@@ -240,30 +241,32 @@ export default function LoginPage() {
         </div>
       </div>
       <Button
+        type="button"
         variant="outline"
         className="w-full border-slate-400 hover:border-slate-500"
         onClick={handleGoogleLogin}
-        disabled={isPending}
+        disabled={isLoading}
       >
         <GoogleColorLogo />
-        {isPending ? 'Authenticating...' : 'Continue with Google'}
+        {isLoading ? 'Authenticating...' : 'Continue with Google'}
       </Button>
     </div>
   );
 
   const SignUpForm = (
-    <div className="w-full max-w-sm">
+    <div key="signup-form" className="w-full max-w-sm">
       <div className="grid gap-2 mb-6">
         <h1 className="text-3xl font-bold">Create an account</h1>
         <p className="text-balance text-muted-foreground">
           Already have an account?{' '}
           <button
+            type="button"
             onClick={() => {
               setFormType('signin');
               signUpForm.reset();
             }}
             className="font-semibold text-primary hover:underline"
-            disabled={isPending}
+            disabled={isLoading}
           >
             Log in
           </button>
@@ -307,7 +310,7 @@ export default function LoginPage() {
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input placeholder="" autoComplete="off" className="border-slate-400 focus-visible:ring-slate-500" {...field} />
+                  <Input type="email" placeholder="Email Address" autoComplete="email" className="border-slate-400 focus-visible:ring-slate-500" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -322,7 +325,7 @@ export default function LoginPage() {
                 <FormControl>
                   <Input
                     type="password"
-                    placeholder=""
+                    placeholder="Password"
                     autoComplete="new-password"
                     className="border-slate-400 focus-visible:ring-slate-500"
                     {...field}
@@ -357,9 +360,9 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="w-full font-semibold"
-            disabled={isPending}
+            disabled={isLoading}
           >
-            {isPending ? 'Creating Account...' : 'Create account'}
+            {isLoading ? 'Creating Account...' : 'Create account'}
           </Button>
         </form>
       </Form>
@@ -374,13 +377,14 @@ export default function LoginPage() {
         </div>
       </div>
       <Button
+        type="button"
         variant="outline"
         className="w-full border-slate-400 hover:border-slate-500"
         onClick={handleGoogleLogin}
-        disabled={isPending}
+        disabled={isLoading}
       >
         <GoogleColorLogo />
-        {isPending ? 'Authenticating...' : 'Continue with Google'}
+        {isLoading ? 'Authenticating...' : 'Continue with Google'}
       </Button>
     </div>
   );

@@ -114,7 +114,7 @@ export default function DashboardPage() {
       {/* Top Bar */}
       <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-2">
         <div>
-          <h1 className="text-3xl font-extrabold font-heading text-aurora-text-high tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-heading text-aurora-text-high tracking-tight">
             {greeting}, {firstName} <span className="inline-block origin-bottom-right hover:animate-wave cursor-default">👋</span>
           </h1>
           <p className="text-aurora-text-low mt-2 font-medium">
@@ -127,14 +127,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         
         {/* Tile A — Wide Welcome */}
-        <div className="md:col-span-8 bg-gradient-to-br from-aurora-blue to-aurora-violet rounded-[24px] p-8 md:p-10 text-white relative overflow-hidden shadow-lg group">
+        <div className="md:col-span-8 bg-gradient-to-br from-aurora-blue to-aurora-violet rounded-[24px] p-6 sm:p-8 md:p-10 text-white relative overflow-hidden shadow-lg group">
           <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-1/4 translate-y-1/4 group-hover:scale-110 group-hover:opacity-20 transition-all duration-700">
             <FileText size={320} strokeWidth={1} />
           </div>
-          <div className="relative z-10 max-w-lg flex flex-col h-full justify-between gap-8">
+          <div className="relative z-10 max-w-lg flex flex-col h-full justify-between gap-6 md:gap-8">
             <div>
-              <h2 className="text-3xl md:text-4xl font-heading font-extrabold mb-4 leading-tight">Ready to understand your next paper?</h2>
-              <p className="text-white/80 text-lg font-medium leading-relaxed">Upload a new document to instantly extract core claims, methodologies, and interactive knowledge graphs.</p>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-extrabold mb-3 md:mb-4 leading-tight">Ready to understand your next paper?</h2>
+              <p className="text-white/80 text-base sm:text-lg font-medium leading-relaxed">Upload a new document to instantly extract core claims, methodologies, and interactive knowledge graphs.</p>
             </div>
             <div>
               <Link href="/upload" className="inline-flex items-center justify-center bg-white text-aurora-blue hover:bg-aurora-surface-1 hover:text-indigo-800 shadow-lg h-14 px-8 rounded-[16px] font-bold text-base transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-aurora-blue">
@@ -145,7 +145,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Tile B & C Column */}
-        <div className="md:col-span-4 flex flex-col gap-6">
+        <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col gap-6">
           <StatTile 
             value={displayPapers.length} 
             label="Papers Uploaded" 

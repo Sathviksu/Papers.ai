@@ -13,6 +13,7 @@ export default function AppLayout({ children }) {
   const pathname = usePathname();
   const [showSplash, setShowSplash] = useState(true);
   const [shouldRenderSplash, setShouldRenderSplash] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -41,7 +42,11 @@ export default function AppLayout({ children }) {
         clearTimeout(unmountTimer);
       };
     }
-  }, [user, loading, pathname]);
+  }, [user, loading]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   if (loading) {
     return <div className="min-h-screen aurora-bg" />;
@@ -68,10 +73,10 @@ export default function AppLayout({ children }) {
         </div>
       )}
 
-      <Sidebar />
-      <div className="flex-1 flex flex-col md:pl-64 transition-all duration-300">
-        <Navbar user={user} />
-        <main className="flex-1 w-full p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <div className="flex-1 flex flex-col md:pl-64 w-full max-w-full transition-all duration-300 overflow-x-hidden">
+        <Navbar user={user} onMenuClick={() => setMobileMenuOpen(true)} />
+        <main className="flex-1 w-full p-4 sm:p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
           {children}
         </main>
       </div>

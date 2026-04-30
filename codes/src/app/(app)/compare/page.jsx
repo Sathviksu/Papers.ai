@@ -347,8 +347,8 @@ function ComparisonReport({ papers }) {
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.3em] text-aurora-text-low font-semibold mb-2">Comparing 2 papers</p>
-            <h2 className="text-3xl font-extrabold font-heading text-aurora-text-high">
-              {paperA.title} <span className="text-aurora-text-mid">vs</span> {paperB.title}
+            <h2 className="text-2xl md:text-3xl font-extrabold font-heading text-aurora-text-high">
+              {paperA.title} <span className="text-aurora-text-mid text-lg md:text-xl">vs</span> {paperB.title}
             </h2>
             <p className="mt-3 text-sm text-aurora-text-mid">
               {getMetadataValue(paperA, 'conference')} · {getMetadataValue(paperA, 'year')} / {getMetadataValue(paperB, 'conference')} · {getMetadataValue(paperB, 'year')}
@@ -361,7 +361,7 @@ function ComparisonReport({ papers }) {
         </div>
       </div>
 
-      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-8">
+      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-6 md:p-8">
         <CardTitle>Section 1 — Quick verdict</CardTitle>
         <div className="space-y-6 mt-6">
           {metrics.map(metric => (
@@ -391,9 +391,10 @@ function ComparisonReport({ papers }) {
         </div>
       </Card>
 
-      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-8">
+      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-6 md:p-8">
         <CardTitle>Section 2 — Side by side metadata</CardTitle>
-        <div className="grid gap-4 mt-6 overflow-x-auto">
+        <div className="overflow-x-auto mt-6">
+          <div className="min-w-[500px] grid gap-4">
           <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-4 text-sm text-aurora-text-low uppercase tracking-[0.15em] font-semibold border-b border-aurora-border pb-3">
             <span></span>
             <span>Paper A</span>
@@ -407,9 +408,11 @@ function ComparisonReport({ papers }) {
             </div>
           ))}
         </div>
+          </div>
+        </div>
       </Card>
 
-      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-8">
+      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-6 md:p-8">
         <CardTitle>Section 3 — Shared concepts (Venn)</CardTitle>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 text-sm text-aurora-text-high">
           <div className="space-y-3">
@@ -433,7 +436,7 @@ function ComparisonReport({ papers }) {
         </div>
       </Card>
 
-      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-8">
+      <Card className="bg-white rounded-[32px] border-aurora-border shadow-sm p-6 md:p-8">
         <CardTitle>Section 4 — Claims comparison</CardTitle>
         <div className="overflow-x-auto mt-6">
           <div className="min-w-[680px] border border-aurora-border rounded-3xl overflow-hidden">
