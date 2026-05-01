@@ -38,10 +38,13 @@ const nextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // pdf-parse imports its own test file at require-time; alias it away to prevent webpack errors
       config.resolve.alias = {
         ...config.resolve.alias,
-        'pdf-parse/lib/pdf-parse.js': 'pdf-parse/lib/pdf-parse.js', // keep real
+        'pdf-parse/lib/pdf-parse.js': 'pdf-parse/lib/pdf-parse.js',
+        '@opentelemetry/exporter-jaeger': false,
+        '@opentelemetry/otlp-grpc-exporter-base': false,
+        '@opentelemetry/otlp-proto-exporter-base': false,
+        '@opentelemetry/exporter-zipkin': false,
       };
       config.plugins = config.plugins || [];
     }
@@ -66,7 +69,13 @@ const nextConfig = {
     '@genkit-ai/flow',
     '@genkit-ai/ai',
     'genkitx-openai',
-    'genkitx-groq'
+    'genkitx-groq',
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/api',
+    '@opentelemetry/resources',
+    '@opentelemetry/semantic-conventions',
+    '@opentelemetry/sdk-trace-base',
+    '@opentelemetry/sdk-trace-node'
   ],
 };
 

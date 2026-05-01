@@ -114,8 +114,9 @@ export default function ComparePage() {
                  >
                    <X className="w-4 h-4" />
                  </button>
-              </div>
-          ))}
+               </div>
+             );
+           })}
           {selectedPapers.length < 4 && (
              <button 
                onClick={() => setIsAddingPaper(true)}
@@ -383,23 +384,22 @@ function ComparisonReport({ papers }) {
                 <span>{metric.label}</span>
                 <span>{metric.a > metric.b ? 'Paper A' : metric.b > metric.a ? 'Paper B' : 'Tie'}</span>
               </div>
-                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <span className="text-xs sm:text-sm font-semibold text-aurora-text-high sm:w-24">Paper A</span>
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="flex-1 h-3 sm:h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
-                      <div className="h-full rounded-full bg-aurora-blue" style={{ width: `${metric.a}%` }} />
-                    </div>
-                    <span className="text-xs sm:text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.a}%</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className="text-xs sm:text-sm font-semibold text-aurora-text-high sm:w-24">Paper A</span>
+                <div className="flex-1 flex items-center gap-3">
+                  <div className="flex-1 h-3 sm:h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
+                    <div className="h-full rounded-full bg-aurora-blue" style={{ width: `${metric.a}%` }} />
                   </div>
+                  <span className="text-xs sm:text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.a}%</span>
                 </div>
-                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <span className="text-xs sm:text-sm font-semibold text-aurora-text-high sm:w-24">Paper B</span>
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="flex-1 h-3 sm:h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
-                      <div className="h-full rounded-full bg-aurora-violet" style={{ width: `${metric.b}%` }} />
-                    </div>
-                    <span className="text-xs sm:text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.b}%</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className="text-xs sm:text-sm font-semibold text-aurora-text-high sm:w-24">Paper B</span>
+                <div className="flex-1 flex items-center gap-3">
+                  <div className="flex-1 h-3 sm:h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
+                    <div className="h-full rounded-full bg-aurora-violet" style={{ width: `${metric.b}%` }} />
                   </div>
+                  <span className="text-xs sm:text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.b}%</span>
                 </div>
               </div>
             </div>
