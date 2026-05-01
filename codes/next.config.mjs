@@ -57,7 +57,17 @@ const nextConfig = {
     return config;
   },
   // Silence the "Critical dependency: require function" warning from pdf-parse
-  serverExternalPackages: ['pdf-parse', 'mammoth'],
+  serverExternalPackages: [
+    'pdf-parse',
+    'mammoth',
+    'genkit',
+    '@genkit-ai/core',
+    '@genkit-ai/dotprompt',
+    '@genkit-ai/flow',
+    '@genkit-ai/ai',
+    'genkitx-openai',
+    'genkitx-groq'
+  ],
 };
 
 export default nextConfig;
