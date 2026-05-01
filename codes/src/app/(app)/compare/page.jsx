@@ -28,7 +28,7 @@ export default function ComparePage() {
   const accents = ['bg-aurora-blue', 'bg-aurora-violet', 'bg-aurora-cyan', 'bg-aurora-rose'];
 
   return (
-    <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto pb-12">
+    <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl lg:text-4xl font-extrabold font-heading text-aurora-text-high tracking-tight">
           Compare Papers
@@ -38,7 +38,7 @@ export default function ComparePage() {
 
       {isAddingPaper && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-2xl p-8 shadow-2xl flex flex-col gap-6 max-h-[80vh] animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-2xl p-5 sm:p-8 shadow-2xl flex flex-col gap-6 max-h-[85vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-bold font-heading text-aurora-text-high">Select Paper to Compare</h3>
               <button onClick={() => setIsAddingPaper(false)} className="p-2 text-aurora-text-low hover:text-aurora-text-high bg-aurora-surface-1 rounded-full border border-aurora-border transition-colors"><X className="w-5 h-5"/></button>
@@ -50,8 +50,8 @@ export default function ComparePage() {
               {papers?.filter(p => !selectedPapers.find(sp => sp.id === p.id)).map(paper => (
                 <div key={paper.id} className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl border border-aurora-border hover:bg-aurora-surface-1 hover:border-aurora-blue/40 transition-colors gap-4">
                   <div className="flex-1 min-w-0 w-full">
-                    <h4 className="font-bold text-aurora-text-high line-clamp-1">{paper.title}</h4>
-                    <p className="text-xs font-semibold text-aurora-text-low mt-1 uppercase tracking-wider">{paper.authors?.[0] || 'Unknown Author'}</p>
+                    <h4 className="font-bold text-aurora-text-high line-clamp-2 leading-tight">{paper.title}</h4>
+                    <p className="text-[10px] sm:text-xs font-semibold text-aurora-text-low mt-1.5 uppercase tracking-wider">{paper.authors?.[0] || 'Unknown Author'}</p>
                   </div>
                   <Button 
                     className="shrink-0 rounded-full font-bold px-6 shadow-sm border border-aurora-border bg-white text-aurora-text-high hover:bg-aurora-text-high hover:text-white" 
@@ -92,8 +92,15 @@ export default function ComparePage() {
         </div>
 
         <div className="flex flex-wrap gap-4 mt-6">
-          {selectedPapers.map((p, i) => (
-             <div key={p.id} className={`flex items-center justify-between gap-3 pr-2 pl-4 py-2.5 rounded-full border bg-white shadow-sm ring-1 ring-inset ${i === 0 ? 'border-aurora-blue/30 ring-aurora-blue/5' : i === 1 ? 'border-aurora-violet/30 ring-aurora-violet/5' : ''}`}>
+           {selectedPapers.map((p, i) => {
+             const ringColors = [
+               'border-aurora-blue/30 ring-aurora-blue/5',
+               'border-aurora-violet/30 ring-aurora-violet/5',
+               'border-aurora-cyan/30 ring-aurora-cyan/5',
+               'border-aurora-rose/30 ring-aurora-rose/5'
+             ];
+             return (
+               <div key={p.id} className={`flex items-center justify-between gap-3 pr-2 pl-4 py-2.5 rounded-full border bg-white shadow-sm ring-1 ring-inset ${ringColors[i % 4]}`}>
                 <div className="flex items-center gap-3">
                    <div className={`w-2.5 h-2.5 rounded-full ${accents[i]}`} />
                    <span className="text-sm font-semibold text-aurora-text-high max-w-[220px] truncate">{p.title}</span>
@@ -347,8 +354,14 @@ function ComparisonReport({ papers }) {
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.3em] text-aurora-text-low font-semibold mb-2">Comparing 2 papers</p>
-            <h2 className="text-2xl md:text-3xl font-extrabold font-heading text-aurora-text-high">
-              {paperA.title} <span className="text-aurora-text-mid text-lg md:text-xl">vs</span> {paperB.title}
+            <h2 className="text-2xl md:text-3xl font-extrabold font-heading text-aurora-text-high leading-tight">
+              {paperA.title} 
+              <div className="flex items-center gap-2 my-1">
+                <span className="h-px bg-aurora-border flex-1 md:hidden" />
+                <span className="text-aurora-text-mid text-lg md:text-xl font-medium">vs</span> 
+                <span className="h-px bg-aurora-border flex-1 md:hidden" />
+              </div>
+              {paperB.title}
             </h2>
             <p className="mt-3 text-sm text-aurora-text-mid">
               {getMetadataValue(paperA, 'conference')} · {getMetadataValue(paperA, 'year')} / {getMetadataValue(paperB, 'conference')} · {getMetadataValue(paperB, 'year')}
@@ -370,20 +383,23 @@ function ComparisonReport({ papers }) {
                 <span>{metric.label}</span>
                 <span>{metric.a > metric.b ? 'Paper A' : metric.b > metric.a ? 'Paper B' : 'Tie'}</span>
               </div>
-              <div className="grid gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-aurora-text-high w-24">Paper A</span>
-                  <div className="flex-1 h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-aurora-blue" style={{ width: `${metric.a}%` }} />
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <span className="text-xs sm:text-sm font-semibold text-aurora-text-high sm:w-24">Paper A</span>
+                  <div className="flex-1 flex items-center gap-3">
+                    <div className="flex-1 h-3 sm:h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
+                      <div className="h-full rounded-full bg-aurora-blue" style={{ width: `${metric.a}%` }} />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.a}%</span>
                   </div>
-                  <span className="text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.a}%</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-aurora-text-high w-24">Paper B</span>
-                  <div className="flex-1 h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-aurora-violet" style={{ width: `${metric.b}%` }} />
+                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <span className="text-xs sm:text-sm font-semibold text-aurora-text-high sm:w-24">Paper B</span>
+                  <div className="flex-1 flex items-center gap-3">
+                    <div className="flex-1 h-3 sm:h-4 rounded-full bg-aurora-surface-2 overflow-hidden">
+                      <div className="h-full rounded-full bg-aurora-violet" style={{ width: `${metric.b}%` }} />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.b}%</span>
                   </div>
-                  <span className="text-sm font-semibold text-aurora-text-high w-10 text-right">{metric.b}%</span>
                 </div>
               </div>
             </div>
@@ -395,16 +411,22 @@ function ComparisonReport({ papers }) {
         <CardTitle>Section 2 — Side by side metadata</CardTitle>
         <div className="overflow-x-auto mt-6">
           <div className="min-w-[500px] grid gap-4">
-          <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-4 text-sm text-aurora-text-low uppercase tracking-[0.15em] font-semibold border-b border-aurora-border pb-3">
-            <span></span>
+          <div className="hidden sm:grid grid-cols-[1.5fr_1fr_1fr] gap-4 text-[10px] text-aurora-text-low uppercase tracking-[0.15em] font-bold border-b border-aurora-border pb-3">
+            <span>Metadata</span>
             <span>Paper A</span>
             <span>Paper B</span>
           </div>
           {metadataRows.map(row => (
-            <div key={row.label} className="grid grid-cols-[1.5fr_1fr_1fr] gap-4 text-sm text-aurora-text-high border-b border-aurora-surface-2 py-3">
-              <span className="font-semibold">{row.label}</span>
-              <span>{row.a}</span>
-              <span>{row.b}</span>
+            <div key={row.label} className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr_1fr] gap-2 sm:gap-4 text-xs sm:text-sm text-aurora-text-high border-b border-aurora-surface-2 py-4 sm:py-3">
+              <span className="font-bold sm:font-semibold text-aurora-text-low sm:text-aurora-text-high uppercase sm:normal-case tracking-wider sm:tracking-normal">{row.label}</span>
+              <div className="flex flex-col gap-1 sm:block">
+                <span className="text-[10px] font-bold text-aurora-blue/60 uppercase sm:hidden">Paper A</span>
+                <span>{row.a}</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:block">
+                <span className="text-[10px] font-bold text-aurora-violet/60 uppercase sm:hidden">Paper B</span>
+                <span>{row.b}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -439,16 +461,22 @@ function ComparisonReport({ papers }) {
         <CardTitle>Section 4 — Claims comparison</CardTitle>
         <div className="overflow-x-auto mt-6">
           <div className="min-w-[680px] border border-aurora-border rounded-3xl overflow-hidden">
-            <div className="grid grid-cols-[1.5fr_3fr_3fr] gap-4 bg-aurora-surface-2 p-4 text-sm font-semibold text-aurora-text-low uppercase tracking-[0.12em]">
+            <div className="hidden sm:grid grid-cols-[1.5fr_3fr_3fr] gap-4 bg-aurora-surface-2 p-4 text-sm font-semibold text-aurora-text-low uppercase tracking-[0.12em]">
               <span>Topic</span>
               <span>Paper A says...</span>
               <span>Paper B says...</span>
             </div>
             {claimRows.map((row, index) => (
-              <div key={`${row.topic}-${index}`} className={`grid grid-cols-[1.5fr_3fr_3fr] gap-4 p-4 ${index % 2 === 0 ? 'bg-white' : 'bg-aurora-surface-1'}`}>
-                <div className="font-semibold text-aurora-text-high">{row.topic}</div>
-                <div className="text-sm text-aurora-text-mid whitespace-pre-wrap">{row.a}</div>
-                <div className="text-sm text-aurora-text-mid whitespace-pre-wrap">{row.b}</div>
+              <div key={`${row.topic}-${index}`} className={`flex flex-col sm:grid sm:grid-cols-[1.5fr_3fr_3fr] gap-4 p-5 sm:p-4 ${index % 2 === 0 ? 'bg-white' : 'bg-aurora-surface-1'}`}>
+                <div className="font-bold text-aurora-text-high border-b border-aurora-border/50 pb-2 sm:border-0 sm:pb-0">{row.topic}</div>
+                <div className="flex flex-col gap-2">
+                   <span className="text-[10px] font-bold text-aurora-blue/60 uppercase sm:hidden">Paper A</span>
+                   <div className="text-sm text-aurora-text-mid whitespace-pre-wrap">{row.a}</div>
+                </div>
+                <div className="flex flex-col gap-2">
+                   <span className="text-[10px] font-bold text-aurora-violet/60 uppercase sm:hidden">Paper B</span>
+                   <div className="text-sm text-aurora-text-mid whitespace-pre-wrap">{row.b}</div>
+                </div>
               </div>
             ))}
           </div>

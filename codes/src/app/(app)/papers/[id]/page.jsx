@@ -210,12 +210,12 @@ export default function PaperDetailPage() {
 
         <section className="border-b border-slate-100 pb-10">
           <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Section-by-section breakdown</h4>
-          <ul className="space-y-6">
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Introduction</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.introduction}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Related Work</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.relatedWork}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Methodology</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.methodology}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Results</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.results}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Conclusion</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.conclusion}</span></li>
+          <ul className="space-y-8">
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Introduction</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.introduction}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Related Work</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.relatedWork}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Methodology</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.methodology}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Results</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.results}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Conclusion</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{expert.breakdown?.conclusion}</span></li>
           </ul>
         </section>
 
@@ -255,12 +255,12 @@ export default function PaperDetailPage() {
 
         <section className="border-b border-slate-100 pb-10">
           <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">Section highlights</h4>
-          <ul className="space-y-6">
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Introduction</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.introduction}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Related Work</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.relatedWork}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Methodology</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.methodology}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Results</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.results}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Conclusion</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.conclusion}</span></li>
+          <ul className="space-y-8">
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Introduction</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.introduction}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Related Work</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.relatedWork}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Methodology</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.methodology}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Results</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.results}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Conclusion</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{practitioner.highlights?.conclusion}</span></li>
           </ul>
         </section>
 
@@ -300,11 +300,11 @@ export default function PaperDetailPage() {
 
         <section className="border-b border-slate-100 pb-10">
           <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-6">What each part of the paper says</h4>
-          <ul className="space-y-6">
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Introduction</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.introduction}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">The Idea</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.theIdea}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Did it work?</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.didItWork}</span></li>
-            <li className="flex"><strong className="text-aurora-blue w-32 shrink-0 font-bold">Takeaway</strong><span className="shrink-0 mr-4 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.takeaway}</span></li>
+          <ul className="space-y-8">
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Introduction</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.introduction}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">The Idea</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.theIdea}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Did it work?</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.didItWork}</span></li>
+            <li className="flex flex-col sm:flex-row sm:gap-4"><strong className="text-aurora-blue w-32 shrink-0 font-bold mb-1 sm:mb-0">Takeaway</strong><span className="hidden sm:inline shrink-0 text-aurora-text-low">→</span><span className="flex-1 text-aurora-text-mid leading-relaxed">{beginner.parts?.takeaway}</span></li>
           </ul>
         </section>
 
@@ -945,18 +945,18 @@ export default function PaperDetailPage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <div className="flex items-center gap-2 shrink-0 md:w-auto pb-2 md:pb-0">
               <Button 
                 variant="outline" 
-                className="border-[#D5D8F2] bg-white"
+                className="border-[#D5D8F2] bg-white h-10 px-3 sm:px-4"
                 onClick={() => setIsSharing(true)}
               >
-                <Share2 className="w-4 h-4 mr-2" /> Share
+                <Share2 className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Share</span>
               </Button>
-              <Button asChild variant="outline" className="border-[#D5D8F2] bg-white">
-                <a href="/compare"><GitCompare className="w-4 h-4 mr-2 text-aurora-cyan" /> Compare</a>
+              <Button asChild variant="outline" className="border-[#D5D8F2] bg-white h-10 px-3 sm:px-4">
+                <a href="/compare"><GitCompare className="w-4 h-4 sm:mr-2 text-aurora-cyan" /> <span className="hidden sm:inline">Compare</span></a>
               </Button>
-              <Button variant="gradient" className="font-bold"><Download className="w-4 h-4 mr-2" /> Export</Button>
+              <Button variant="gradient" className="font-bold h-10 px-3 sm:px-4"><Download className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Export</span></Button>
             </div>
           </div>
 
@@ -1010,14 +1010,14 @@ export default function PaperDetailPage() {
         {/* SUMMARY TAB */}
         {activeTab === 'summary' && (
           <div className="flex flex-col gap-6">
-            <div className="flex justify-between items-center bg-white p-2 pl-6 rounded-[20px] border border-aurora-border shadow-sm">
-              <span className="font-semibold text-aurora-text-high text-sm">Audience Level</span>
-              <div className="flex bg-aurora-surface-2 p-1 rounded-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 sm:p-2 sm:pl-6 rounded-[24px] sm:rounded-[20px] border border-aurora-border shadow-sm gap-3">
+              <span className="font-bold text-aurora-text-high text-xs sm:text-sm uppercase tracking-widest sm:normal-case sm:tracking-normal ml-3 sm:ml-0">Audience Level</span>
+              <div className="flex bg-aurora-surface-2 p-1 rounded-xl sm:rounded-full overflow-x-auto scrollbar-hide">
                 {['Expert', 'Practitioner', 'Beginner'].map(level => (
                   <button 
                     key={level}
                     onClick={() => setSummaryLevel(level.toLowerCase())}
-                    className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                    className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg sm:rounded-full text-xs sm:text-sm font-bold sm:font-semibold transition-all whitespace-nowrap ${
                       summaryLevel === level.toLowerCase() ? 'bg-white text-aurora-blue shadow-sm' : 'text-aurora-text-mid hover:text-aurora-text-high'
                     }`}
                   >
@@ -1027,9 +1027,9 @@ export default function PaperDetailPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-[24px] border border-aurora-border p-8 shadow-sm relative overflow-hidden">
-               <div className="absolute top-8 right-8">
-                 <Button variant="outline" size="sm" className="bg-white"><Copy className="w-4 h-4 mr-2" /> Copy Summary</Button>
+            <div className="bg-white rounded-[24px] border border-aurora-border p-5 sm:p-8 shadow-sm relative overflow-hidden">
+               <div className="flex justify-end mb-6 sm:absolute sm:top-8 sm:right-8 sm:mb-0">
+                 <Button variant="outline" size="sm" className="bg-white w-full sm:w-auto"><Copy className="w-4 h-4 mr-2" /> Copy Summary</Button>
                </div>
                <div className="flex flex-col gap-4 text-left">
                  {getSummaryTextByLevel()}

@@ -68,7 +68,6 @@ async function extractTextViaApi(file) {
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState(null);
-  const [linkInput, setLinkInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -103,7 +102,7 @@ export default function UploadPage() {
 
   const handleStartProcessing = async () => {
     if (!user || !firestore) return;
-    if (!file && !linkInput) return;
+    if (!file) return;
 
     setIsProcessing(true);
     setCurrentStep(1);
@@ -113,10 +112,6 @@ export default function UploadPage() {
       let textContent = '';
       if (file) {
         textContent = await extractTextViaApi(file);
-      } else {
-        throw new Error(
-          'Link import is not yet implemented. Please upload a PDF, DOCX, TXT, or MD file.'
-        );
       }
 
       const paperId = doc(collection(firestore, 'mock')).id;
@@ -131,8 +126,8 @@ export default function UploadPage() {
         abstract: textContent.substring(0, 300) + '...',
         fullText: textContent,
         filePath: '',
-        fileName: file ? file.name : linkInput,
-        fileSize: file ? file.size : 0,
+        fileName: file.name,
+        fileSize: file.size,
         uploadDate: new Date().toISOString(),
         status: 'processing',
         processingStatus: 'processing',
@@ -333,7 +328,7 @@ export default function UploadPage() {
 
         <div className="max-w-3xl w-full px-4 md:px-6 text-center z-10 flex flex-col items-center my-8 shrink-0">
           <h1 className="text-xl md:text-3xl font-heading font-extrabold text-aurora-text-high mb-8 md:mb-12 line-clamp-2 md:line-clamp-none">
-            Processing: {file ? file.name : 'URL Document'}
+            Processing: {file?.name || 'Document'}
           </h1>
 
           {/* Spinner */}
@@ -551,29 +546,8 @@ export default function UploadPage() {
         </div>
       </div>
 
-      {!file && (
-        <div className="w-full max-w-xl text-center mt-4">
-          <p className="text-sm font-semibold text-aurora-text-low mb-4 uppercase tracking-wider">
-            Or paste a link instead
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1 group">
-              <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-aurora-text-low group-focus-within:text-aurora-blue transition-colors" />
-              <Input
-                className="pl-12 h-14 rounded-[16px] border-aurora-border shadow-sm text-base"
-                placeholder="arXiv URL or DOI string..."
-                value={linkInput}
-                onChange={(e) => setLinkInput(e.target.value)}
-              />
-            </div>
-            <Button className="h-14 px-8 rounded-[16px] font-bold shadow-md bg-white border border-aurora-border text-aurora-text-high hover:bg-aurora-surface-1 w-full sm:w-auto">
-              Fetch
-            </Button>
-          </div>
-        </div>
-      )}
 
-      {(file || linkInput) && (
+      {file && (
         <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 flex flex-col items-center">
           <Button
             className="h-16 px-12 rounded-full font-extrabold text-lg text-white bg-gradient-to-r from-aurora-blue to-aurora-violet shadow-lg shadow-aurora-blue/25 hover:shadow-xl hover:shadow-aurora-blue/30 active:scale-95 transition-all"
