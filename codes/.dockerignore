@@ -1,0 +1,17 @@
+node_modules
+.next
+.env.local
+.env*.local
+npm-debug.log*
+.git
+.gitignore
+README.md
+build_log.txt
+build_output.txt
+scratch.js
+debug.js
+test-qna.js
+map.ps1
+artifacts
+docs
+*.test.js
